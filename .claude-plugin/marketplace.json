@@ -1,0 +1,14 @@
+{
+  "name": "ouroboros",
+  "owner": {
+    "name": "Patrick Starzynski"
+  },
+  "plugins": [
+    {
+      "name": "ouroboros",
+      "source": "./",
+      "description": "Ein Delivery-Loop aus Rollen, der sich über alle Repos hinweg selbst vermisst und verbessert."
+    }
+  ],
+  "description": "Ouroboros — der Delivery-Loop als Claude-Code-Plugin."
+}

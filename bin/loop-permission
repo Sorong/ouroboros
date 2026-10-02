@@ -1,0 +1,3 @@
+#!/usr/bin/env sh
+# loop-permission — siehe loop-doc permissions.
+exec python3 "$(dirname "$0")/../scripts/loopcmd.py" permission "$@"
