@@ -22,7 +22,7 @@ to the repo root.
 
 Leave the worktree in place when your run ends; it's still the branch the Reviewer reads and QA
 reviews, and where every later run picks the work back up — the review round on your draft, and
-a `"review zu #<n>"` run on the open PR. In that run the same rule holds: stakeholder feedback
+a `"review on #<n>"` run on the open PR. In that run the same rule holds: stakeholder feedback
 that amounts to a decision — a new ADR, a term — is a stop to the Architect, who writes it up
 for the stakeholder to review with distance; you implement it once it's on `main`.
 

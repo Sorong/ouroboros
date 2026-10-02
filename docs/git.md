@@ -3,8 +3,8 @@
 ## Branch names
 
 `<typ>/<kebab-slug>` — the slug is a topic, in the language the repo writes in (its CLAUDE.md or its
-history), not an issue number: `feat/warenkorb-rabatte`,
-`docs/adr-sitzungsdauer`. The PR body carries the
+history), not an issue number: `feat/cart-discounts`,
+`docs/adr-session-length`. The PR body carries the
 `Closes #<n>` reference, so the branch doesn't have to.
 
 | Typ        | For                                        |
@@ -23,7 +23,7 @@ Only in a repo with a roadmap: a commit that implements part of a milestone step
 up front. Elsewhere the repo's own commit convention holds.
 
 ```
-M2.3 Rabatte im Warenkorb verrechnen
+M2.3 Apply discounts in the shopping cart
 ```
 
 `M<N>.<k> <subject>`, where `N` is the milestone and `k` the step in `docs/roadmap/m<N>.md`.

@@ -1,8 +1,9 @@
 {
   "name": "ouroboros",
-  "description": "Rollenbasierter Delivery-Loop (Project Manager, Architect, Product Owner, Developer, Reviewer, Triage, Agent-Designer) für Repos mit oder ohne Roadmap, eigene wie fremde. Was ein Repo erlaubt und wie es verifiziert, steht in seiner Bindung.",
+  "description": "Role-based delivery loop (Project Manager, Architect, Product Owner, Developer, Reviewer, Triage, Agent-Designer) for repos with or without a roadmap, your own or someone else's. What a repo allows and how it verifies lives in its binding.",
   "author": {
     "name": "Patrick Starzynski"
   },
-  "repository": "https://github.com/Sorong/ouroboros"
+  "repository": "https://github.com/Sorong/ouroboros",
+  "license": "MIT"
 }

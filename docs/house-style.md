@@ -6,7 +6,7 @@ both with the same reason: the Developer reads a spec text as an instruction.
 
 ## Name decisions, not code
 
-A step, an ADR or an `Ergebnis:` paragraph points at its ADRs and uses the terms from
+A step, an ADR or a `Result:` paragraph points at its ADRs and uses the terms from
 `CONTEXT.md`. Type, method and field names of this repo don't appear, not even in backticks.
 
 - An identifier for unbuilt code is a prediction the Developer reads as an instruction.
@@ -38,11 +38,12 @@ Per repo, in `.claude/ouroboros.json`:
   "docstyle": {
     "adrSectionsFrom": 1,
     "adrProseFrom": 1,
-    "adrSections": ["Kontext", "Optionen", "Entscheidung", "Konsequenzen"],
-    "foreignNames": ["MonoBehaviour"]
+    "adrSections": ["Context", "Options", "Decision", "Consequences"],
+    "foreignNames": ["GraphQL"]
   }
 }
 ```
 
 `adrSectionsFrom` and `adrProseFrom` let a repo keep ADRs written before it adopted the rules:
-older ones are not rewritten. Every key is optional.
+older ones are not rewritten. `adrSections` defaults to the English headings above; a repo that
+writes its ADRs in another language names its own. Every key is optional.

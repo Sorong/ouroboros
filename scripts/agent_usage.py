@@ -1,59 +1,60 @@
 #!/usr/bin/env python3
-"""Prüft, ob der Zuschnitt der Agent-Rollen zu dem passt, was tatsächlich gelaufen ist — über
-alle Repos, die den Loop fahren.
+"""Checks whether the cut of the agent roles fits what actually ran — across all repos that
+run the loop.
 
-Die Rollen sind eine Definition für viele Repos. Darum misst dieses Skript nicht das Repo, in
-dem es läuft, sondern jedes Repo im Register (`~/.claude/ouroboros/projects.json`). Ins
-Register kommt ein Repo beim ersten SessionStart, an dem der Loop dort läuft — weil das Repo ihn
-trägt (`.claude/ouroboros.json`) oder schon eine Antwort gemerkt ist (`.git/ouroboros.json`). Die
-Definitionen und ihre Änderungszeitpunkte kommen aus dem Quell-Repo des Plugins.
+The roles are one definition for many repos. So this script does not measure the repo it runs
+in, but every repo in the registry (`~/.claude/ouroboros/projects.json`). A repo enters the
+registry at the first SessionStart where the loop runs there — because the repo carries it
+(`.claude/ouroboros.json`) or an answer is already remembered (`.git/ouroboros.json`). The
+definitions and their change times come from the plugin's source repo.
 
-Quelle der Läufe sind die Transkripte unter `~/.claude/projects/` — die Hauptsessions jedes
-Repos, die Sessions seiner Worktrees und die Subagent-Läufe darin. Gemessen wird die
-Kontextmenge, die ein Lauf getragen hat: frische Eingabe plus Cache. Das ist kein
-Rechnungsposten, sondern das Volumen, das jeder Turn erneut mitliest.
+The runs come from the transcripts under `~/.claude/projects/` — each repo's main sessions, the
+sessions of its worktrees and the subagent runs inside them. What is measured is the amount of
+context a run carried: fresh input plus cache. That is not a billing item but the volume every
+turn reads again.
 
-Neun Prüfungen:
+Nine checks:
 
-1. **Tote Definition** — ein Agent des Plugins, der in keinem Repo gespawnt wurde. Entweder
-   fehlt der Trigger oder die Rolle ist erfunden.
-2. **Umgangene Definition** — Arbeit, die eine definierte Rolle beim Namen nennt, aber als
-   `general-purpose` lief. Dann gilt deren Werkzeuggrenze nicht: ein Reviewer ohne `Edit` ist
-   nur einer, wenn er auch als Reviewer gespawnt wird.
-3. **Kandidat** — eine Rollenform, die wiederkehrt, ohne dass es eine Definition gibt. Das ist
-   der Befund, der eine neue Rolle vorschlägt.
-4. **Falscher Zuschnitt** — Läufe über dem Turn-Budget, unter der Mindestlänge oder mit mehr
-   Sockel als Arbeit.
-5. **Nicht geschnitten** — interaktive Sessions, deren Kontext pro Turn die Schwelle reißt.
-   Dort wurde weitergeredet, wo hätte geschnitten werden müssen.
-6. **Im Hauptkontext erledigt** — Aufträge derselben Form, die in einer interaktiven Session
-   lange ohne Zuruf durchlaufen. Wer nicht dazwischenredet, führt kein Gespräch, sondern hat
-   delegiert, ohne zu delegieren. Die Form ist der Rollenvorschlag: gruppiert wird nach den
-   Triggern, die der Loop ohnehin kennt — ein Issue, ein Meilensteinschritt.
-7. **Wiederholte Orientierung** — Dokumente, die fast jeder Lauf ganz liest. Die brauchen kein
-   eigenes Rollenprofil, sondern ein Destillat.
-8. **Sperrfrist** — eine Rolle, deren Definition sich geändert hat, ist bis zu ihrem fünften Lauf
-   danach von allen Befunden ausgenommen, gezählt über alle Repos. Vorher misst ein Befund die
-   alte Fassung, nicht die neue. Als Lauf einer Rolle zählt ein Subagent ihres Typs, eine
-   Session, die ihren Skill lädt, oder — aus der Zeit vor dem Plugin — eine Session, die ihr
-   Dokument unter `docs/agents/` liest. Was keiner Rolle gehört, misst den Loop selbst: für ihn
-   gilt dasselbe ab der letzten Änderung von `docs/loop.md`, gezählt in Sessions.
-9. **Muster** — die Zuordnungen, die der Product Owner auf Stakeholder-Kommentare in PRs antwortet
-   (`Zuordnung: <Stelle> — …`). Dieselbe Stelle in drei PRs seit der letzten Änderung ihrer
-   Definition ist ein Befund. Stellen, die eine Rolle meinen, zählen über alle Repos. Stellen,
-   die das Produkt meinen („Regel fehlt", „Spec"), zählen je Repo, denn ihr Empfänger ist der
-   Architect dieses Repos. Die Quelle ist GitHub über `gh`; ohne Netz fällt die Prüfung weg.
+1. **Dead definition** — a plugin agent that was spawned in no repo. Either the trigger is
+   missing or the role is made up.
+2. **Bypassed definition** — work that names a defined role but ran as `general-purpose`. Then
+   that role's tool boundary does not hold: a Reviewer without `Edit` is only one if it is also
+   spawned as a Reviewer.
+3. **Candidate** — a role shape that recurs without a definition. This is the finding that
+   proposes a new role.
+4. **Wrong cut** — runs over the turn budget, under the minimum length, or with more base load
+   than work.
+5. **Not cut** — interactive sessions whose context per turn breaks the threshold. The talk went
+   on where it should have been cut.
+6. **Done in the main context** — tasks of the same shape that run long without a word from the
+   stakeholder in an interactive session. Who does not interject is not having a conversation
+   but has delegated without delegating. The shape is the role proposal: grouped by the
+   triggers the loop already knows — an issue, a milestone step.
+7. **Repeated orientation** — documents that nearly every run reads in full. They need no role
+   profile of their own, but a distillate.
+8. **Lock period** — a role whose definition changed is exempt from all findings until its fifth
+   run after the change, counted across all repos. Before that, a finding measures the old
+   version, not the new one. A run of a role is a subagent of its type, a session that loads its
+   skill, or — from before the plugin — a session that reads its document under `docs/agents/`.
+   What belongs to no role measures the loop itself: the same holds for it from the last change
+   of `docs/loop.md`, counted in sessions.
+9. **Pattern** — the attributions the Product Owner replies to stakeholder comments in PRs
+   (`Attribution: <place> — …`, or the older German `Zuordnung: <Stelle> — …`). The same place
+   in three PRs since the last change of its definition is a finding. Places that mean a role
+   count across all repos. Places that mean the product ("rule missing", "spec") count per repo,
+   because their receiver is that repo's Architect. The source is GitHub via `gh`; without a
+   network the check drops out.
 
-Die Befunde sind die Quelle des Agent-Designers (Skill `ouroboros:agent-designer`).
+The findings are the Agent-Designer's source (skill `ouroboros:agent-designer`).
 
-Die Schwellen sind die Vorgabe. Ein Repo kann sie für seine eigenen Läufe überschreiben, in
-`.claude/ouroboros.json`, Abschnitt `agentUsage` (z. B. `{"turnBudget": 60}`).
+The thresholds are the default. A repo can override them for its own runs in
+`.claude/ouroboros.json`, section `agentUsage` (e.g. `{"turnBudget": 60}`).
 
-Gewertet wird ein Zeitfenster (`--since`, Default 90 Tage). Was älter ist, ist kein Befund mehr,
-sondern Geschichte.
+A time window is evaluated (`--since`, default 90 days). What is older is no longer a finding but
+history.
 
-Ohne Befund: keine Ausgabe, Exit 0 — damit es als SessionStart-Hook nicht stört.
-Mit Befund: Bericht auf stdout, Exit 1. `--full` zeigt den Stand auch ohne Befund.
+No finding: no output, exit 0 — so it stays out of the way as a SessionStart hook.
+With findings: report on stdout, exit 1. `--full` shows the state even without a finding.
 """
 
 import argparse
@@ -68,40 +69,42 @@ from pathlib import Path
 
 import loopcfg
 
-# Schwellen. Jede stammt aus einer Messung am ersten Repo des Loops, nicht aus einer Empfehlung.
+# Thresholds. Each comes from a measurement on the loop's first repo, not from a recommendation.
 LIMITS = {
-    "turnBudget": 40,          # Der längste Lauf brauchte 96 Turns - das ist eine Session ohne Mensch.
-    "minTurns": 3,             # Darunter trägt der Lauf fast nur seinen Sockel: 38k vor dem ersten Wort.
-    "sessionContext": 250_000, # Median einer Session lag bei 141k; darüber wurde nicht geschnitten.
-    "unattendedTurns": 25,     # So lange ohne Zuruf ist ein Auftrag, kein Gespräch.
+    "turnBudget": 40,          # The longest run took 96 turns - that is a session without a human.
+    "minTurns": 3,             # Below that a run carries little but its base: 38k before the first word.
+    "sessionContext": 250_000, # A session's median was 141k; above this, nobody cut.
+    "unattendedTurns": 25,     # This long without a word is a task, not a conversation.
 }
-BLOCK_FLOOR = 10          # Kürzere Strecken sind Gespräch; sie kommen gar nicht erst in den Cache.
-CANDIDATE_RUNS = 3        # Dreimal dieselbe Form ist eine Rolle, zweimal ein Zufall.
-ORIENTATION_SHARE = 0.5   # Ein Dokument, das die Hälfte aller Läufe ganz liest.
-WINDOW_DAYS = 90          # Ältere Läufe sind Geschichte, kein Befund.
-HOOK_BUDGET_SECONDS = 5   # Was in einem Lauf nicht neu eingelesen wird, holt der nächste nach.
-CACHE_VERSION = 6         # Bei neuen Feldern verwerfen, statt Halbes zu mischen.
-SHOWN_PER_FINDING = 3     # Ausreißer sind sortiert; die schwersten genügen.
-LOCK_RUNS = 5             # So viele Läufe braucht eine geänderte Definition, bevor sie Befund sein kann.
-PATTERN_PRS = 3           # Dieselbe Zuordnung in so vielen PRs ist ein Muster, darunter ein Einzelfall.
-GITHUB_TIMEOUT = 4        # Der Hook hat sein Zeitbudget; das Einlesen der Transkripte braucht bis zu 5.
+BLOCK_FLOOR = 10          # Shorter stretches are conversation; they don't even enter the cache.
+CANDIDATE_RUNS = 3        # Three times the same shape is a role, twice is chance.
+ORIENTATION_SHARE = 0.5   # A document that half of all runs read in full.
+WINDOW_DAYS = 90          # Older runs are history, not a finding.
+HOOK_BUDGET_SECONDS = 5   # What one run does not read in, the next one catches up on.
+CACHE_VERSION = 7         # Discard on new fields or labels instead of mixing halves.
+SHOWN_PER_FINDING = 3     # Outliers are sorted; the heaviest are enough.
+LOCK_RUNS = 5             # This many runs a changed definition needs before it can be a finding.
+PATTERN_PRS = 3           # The same attribution in this many PRs is a pattern, fewer is a one-off.
+GITHUB_TIMEOUT = 4        # The hook has its time budget; reading the transcripts takes up to 5.
 
-# Stelle aus der Zuordnung → die Definition, deren Änderung die Zählung neu beginnen lässt.
-# ("plugin", Pfad) liegt im Quell-Repo des Plugins, ("project", Pfad) im Repo des PRs.
-# „niemand“ ist QA, wie sie gedacht ist; „Lücke“ hat noch keine Definition.
+# Place from the attribution → the definition whose change restarts the count.
+# ("plugin", path) lives in the plugin's source repo, ("project", path) in the PR's repo.
+# "nobody" is QA as intended; "gap" has no definition yet. German places map onto these
+# (`loopcfg.place_of`).
 ATTRIBUTIONS = {
     "developer": ("plugin", "agents/developer.md"),
     "reviewer": ("plugin", "agents/reviewer.md"),
-    "regel fehlt": ("project", "docs/code-principles.md"),
+    "rule missing": ("project", "docs/code-principles.md"),
     "spec": ("plugin", "skills/architect/SKILL.md"),
-    "schnitt": ("plugin", "skills/product-owner/SKILL.md"),
-    "lücke": None,
+    "cut": ("plugin", "skills/product-owner/SKILL.md"),
+    "gap": None,
 }
-TO_ARCHITECT = {"regel fehlt", "spec"}
+TO_ARCHITECT = {"rule missing", "spec"}
 LOOP = "Loop (docs/loop.md)"
 LOOP_DEFINITION = "docs/loop.md"
 NOT_A_ROLE = {"setup"}
-ATTRIBUTION = re.compile(r"^\s*Zuordnung:\s*([^—–\-\n]+)", re.IGNORECASE)
+PREFIXES = "|".join(loopcfg.ATTRIBUTION_PREFIXES)
+ATTRIBUTION = re.compile(rf"^\s*(?:{PREFIXES}):\s*([^—–\-\n]+)", re.IGNORECASE)
 PULL_NUMBER = re.compile(r"/pull/(\d+)")
 PREFIX = loopcfg.PLUGIN_NAME + ":"
 
@@ -110,21 +113,21 @@ SKIPPED_DIRS = (".claude/worktrees", "Library", "node_modules", ".git", "Temp", 
 
 
 def plain(name):
-    """`ouroboros:developer` und das alte `developer` sind dieselbe Rolle."""
+    """`ouroboros:developer` and the old `developer` are the same role."""
     if not name:
         return name
     return name[len(PREFIX):] if name.startswith(PREFIX) else name
 
 
 def transcripts(project):
-    """Jedes Transkript eines Repos mit seiner Herkunft: eine interaktive Session oder ein
-    Subagent-Lauf. Worktrees liegen unter demselben Präfix wie ihr Haupt-Checkout."""
+    """Every transcript of a repo with its origin: an interactive session or a subagent run.
+    Worktrees live under the same prefix as their main checkout."""
     base = Path.home() / ".claude" / "projects"
     slug = loopcfg.project_slug(project)
     for directory in sorted(d for d in base.glob(slug + "*") if d.is_dir()):
         rest = directory.name[len(slug):]
         if rest and not rest.startswith("--claude-worktrees"):
-            continue  # ein anderes Repo, dessen Pfad nur gleich anfängt
+            continue  # another repo whose path merely starts the same
         kind = "worktree" if rest else "session"
         for path in directory.glob("*.jsonl"):
             yield path, kind, None
@@ -196,8 +199,8 @@ def scan(path, meta, known_docs):
 
 
 def repo_doc(match, known_docs):
-    """Ein Pfad, wie er in einem Werkzeugaufruf steht — relativ, oder absolut in irgendeinem
-    Worktree — als Pfad im Repo."""
+    """A path as it appears in a tool call — relative, or absolute in some worktree — as a path
+    in the repo."""
     relative = match.lstrip("./")
     if relative in known_docs:
         return relative
@@ -209,7 +212,7 @@ def repo_doc(match, known_docs):
 
 
 def markdown_in(project):
-    """Die Dokumente eines Repos, ohne Worktrees und Build-Verzeichnisse."""
+    """A repo's documents, without worktrees and build directories."""
     found = set()
     for path in project.rglob("*.md"):
         relative = path.relative_to(project).as_posix()
@@ -219,7 +222,7 @@ def markdown_in(project):
 
 
 def collect(projects, known, cache_path, budget=None):
-    """Transkripte wachsen nur am Ende; ein Lauf gleicher Größe ist derselbe Lauf."""
+    """Transcripts only grow at the end; a run of the same size is the same run."""
     try:
         cache = json.loads(cache_path.read_text(encoding="utf-8"))
     except (OSError, ValueError):
@@ -229,8 +232,8 @@ def collect(projects, known, cache_path, budget=None):
     entries = cache["entries"]
     runs, sessions, pending = [], [], 0
     deadline = time.monotonic() + budget if budget else None
-    # Die Rollendokumente aus der Zeit vor dem Plugin, damit ein Lauf von damals seiner Rolle
-    # zugeordnet wird, auch wenn das Repo die Datei nicht mehr hat.
+    # The role documents from before the plugin, so a run from back then is assigned to its
+    # role even if the repo no longer has the file.
     legacy = {f"docs/agents/{slug}.md" for slug in known}
     for project in projects:
         known_docs = None
@@ -262,35 +265,35 @@ STEP_TRIGGER = re.compile(r"\bM\d+(\.\d+)?\b", re.IGNORECASE)
 
 
 def trigger_of(prompt):
-    """Wonach ein Auftrag aussieht. Die Formen sind die aus dem Loop, nicht erfundene."""
+    """What a task looks like. The shapes are the loop's own, not made up."""
     if not prompt or prompt.lstrip().startswith(("<system-reminder>", "<command-message>")):
         return None
     if ISSUE_TRIGGER.search(prompt):
-        return "ein Issue"
+        return "an issue"
     if STEP_TRIGGER.search(prompt):
-        return "ein Meilensteinschritt"
+        return "a milestone step"
     return None
 
 
 def roles():
-    """Was das Plugin an Rollen kennt — als Subagent definiert oder als Skill beschrieben."""
+    """The roles the plugin knows — defined as a subagent or documented as a skill."""
     root = loopcfg.definitions_root()
     known = {}
     for path in sorted((root / "skills").glob("*/SKILL.md")):
         if path.parent.name not in NOT_A_ROLE:
-            known[path.parent.name] = "dokumentiert"
+            known[path.parent.name] = "documented"
     for path in sorted((root / "agents").glob("*.md")):
-        known[path.stem] = "definiert"
+        known[path.stem] = "defined"
     return known
 
 
 def definition_of(slug, source):
-    return f"agents/{slug}.md" if source == "definiert" else f"skills/{slug}/SKILL.md"
+    return f"agents/{slug}.md" if source == "defined" else f"skills/{slug}/SKILL.md"
 
 
 def changed_at(root, relative):
-    """Letzter Commit auf die Datei, in UTC und so geschrieben wie die Zeitstempel der Transkripte,
-    damit ein Textvergleich genügt."""
+    """The last commit on the file, in UTC and written like the transcripts' timestamps, so a
+    text comparison is enough."""
     if root is None:
         return None
     stamp = loopcfg.git(["log", "-1", "--format=%cI", "--", relative], cwd=root)
@@ -303,8 +306,8 @@ _PLUGIN_STAMPS = {}
 
 
 def plugin_changed_at(relative):
-    """Letzte Änderung einer Datei des Plugins: aus einem Clone mit voller Geschichte, sonst —
-    installiert aus GitHub, als flacher Clone oder Kopie — über die GitHub-API."""
+    """The last change of a plugin file: from a clone with full history, else — installed from
+    GitHub, as a shallow clone or a copy — via the GitHub API."""
     if relative in _PLUGIN_STAMPS:
         return _PLUGIN_STAMPS[relative]
     source = loopcfg.plugin_source()
@@ -327,7 +330,7 @@ def plugin_changed_at(relative):
 
 
 def changes(known):
-    """{slug: letzte Änderung seiner Definition} — aus der Geschichte des Plugins."""
+    """{slug: last change of its definition} — from the plugin's history."""
     found = {}
     for slug, kind in known.items():
         since = plugin_changed_at(definition_of(slug, kind))
@@ -337,18 +340,17 @@ def changes(known):
 
 
 def is_run_of(entry, slug, source):
-    """Eine definierte Rolle läuft nur, wenn sie gespawnt wird — wer ihre Datei liest, bearbeitet
-    sie. Eine beschriebene Rolle läuft, wenn eine Session ihren Skill lädt oder, vor dem Plugin,
-    ihr Dokument las."""
-    if source == "definiert":
+    """A defined role runs only when it is spawned — whoever reads its file is editing it. A
+    documented role runs when a session loads its skill or, before the plugin, read its
+    document."""
+    if source == "defined":
         return entry["agent"] == slug
     return (entry["agent"] == slug or slug in entry.get("skills", [])
             or f"docs/agents/{slug}.md" in entry["docs"])
 
 
 def locks(known, changed, runs, sessions):
-    """{slug: (geändert, Läufe seither)} für jede Rolle, die ihre Sperrfrist noch nicht hinter
-    sich hat."""
+    """{slug: (changed, runs since)} for every role whose lock period is not over yet."""
     locked = {}
     for slug, since in changed.items():
         count = sum(1 for entry in runs + sessions
@@ -359,9 +361,9 @@ def locks(known, changed, runs, sessions):
 
 
 def attributions(projects, window_days):
-    """[(Zeitpunkt, Repo, PR, Stelle, Text)] aus Review- und Gesprächskommentaren aller Repos und
-    aus den Notizen von `loop-note`, für Repos, in denen keine PR-Antwort stehen darf. None
-    heißt: GitHub nicht erreichbar und keine Notiz."""
+    """[(time, repo, PR, place, text)] from the review and conversation comments of all repos
+    and from the notes of `loop-note`, for repos where no PR reply may stand. None means: GitHub
+    unreachable and no note."""
     noted = noted_attributions(projects, window_days)
     found = github_attributions(projects, window_days)
     if found is None:
@@ -376,7 +378,7 @@ def noted_attributions(projects, window_days):
     found = []
     for note in loopcfg.notes():
         project = by_id.get(note.get("repo"))
-        place = (note.get("place") or "").lower()
+        place = loopcfg.place_of(note.get("place"))
         if project is None or place not in ATTRIBUTIONS or (note.get("at") or "") < since:
             continue
         pull = PULL_NUMBER.search(note.get("ref") or "")
@@ -386,11 +388,11 @@ def noted_attributions(projects, window_days):
 
 
 def github_attributions(projects, window_days):
-    """Die Zuordnungen, die als Antwort in einem PR stehen. Ein Repo, das GitHub nicht
-    beantwortet, fällt heraus, nicht die ganze Prüfung."""
+    """The attributions that stand as a reply in a PR. A repo GitHub does not answer for drops
+    out, not the whole check."""
     since = (datetime.now(timezone.utc) - timedelta(days=window_days or 3650)).strftime(
         "%Y-%m-%dT%H:%M:%SZ")
-    select = ('.[] | select(.body | test("^\\\\s*Zuordnung:"; "i")) '
+    select = (f'.[] | select(.body | test("^\\\\s*({PREFIXES}):"; "i")) '
               '| {at: .created_at, url: .html_url, body: .body}')
     calls = []
     try:
@@ -420,7 +422,7 @@ def github_attributions(projects, window_days):
                 match = ATTRIBUTION.match(comment["body"])
                 if not pull or not match:
                     continue
-                place = match.group(1).strip().lower()
+                place = loopcfg.place_of(match.group(1))
                 if place in ATTRIBUTIONS:
                     found.append((comment["at"], project, int(pull.group(1)), place,
                                   comment["body"].strip().splitlines()[0]))
@@ -440,8 +442,8 @@ def defined_at(place, project):
 
 
 def patterns(found, locked):
-    """Stellen, die in PATTERN_PRS PRs seit der letzten Änderung ihrer Definition genannt wurden.
-    Eine Stelle, die das Produkt meint, zählt je Repo, alle anderen über alle Repos."""
+    """Places named in PATTERN_PRS PRs since the last change of their definition. A place that
+    means the product counts per repo, all others across all repos."""
     findings = []
     groups = defaultdict(dict)
     for at, project, pull, place, text in sorted(found, key=lambda item: item[0]):
@@ -457,12 +459,12 @@ def patterns(found, locked):
         slug = role_slug(target[1]) if target else None
         if slug in locked:
             continue
-        receiver = (f"Architect von {Path(project).name}, als needs-refinement"
+        receiver = (f"Architect of {Path(project).name}, as needs-refinement"
                     if place in TO_ARCHITECT else "Agent-Designer")
         numbers = ", ".join(f"{Path(repo).name}#{pull}" if isinstance(pull, int)
                             else f"{Path(repo).name} {pull}"
                             for repo, pull in sorted(pulls, key=str))
-        findings.append((f"Muster: „{place}“ in {len(pulls)} PRs → {receiver}",
+        findings.append((f"Pattern: \"{place}\" in {len(pulls)} PRs → {receiver}",
                          [numbers] + list(pulls.values())))
     return findings
 
@@ -487,7 +489,7 @@ def role_of_run(entry, known):
 
 
 def shape_of(description):
-    """Die Form eines Laufs: was vor dem Doppelpunkt steht, ist die Rolle, die gemeint war."""
+    """The shape of a run: what stands before the colon is the role that was meant."""
     if not description or ":" not in description:
         return None
     head = description.split(":", 1)[0].strip().lower()
@@ -502,7 +504,7 @@ def recent(entries, window_days):
 
 
 def limit(entry, name, overrides):
-    """Die Schwelle für einen Lauf: die Vorgabe, oder was sein Repo dafür setzt."""
+    """The threshold for a run: the default, or what its repo sets for it."""
     return overrides.get(entry["project"], {}).get(name, LIMITS[name])
 
 
@@ -512,9 +514,9 @@ def repos_of(entries):
 
 
 def check(known, runs, sessions, window_days, changed, locked, loop_since, overrides):
-    defined = {slug for slug, source in known.items() if source == "definiert"} - set(locked)
+    defined = {slug for slug, source in known.items() if source == "defined"} - set(locked)
     runs, sessions = recent(runs, window_days), recent(sessions, window_days)
-    # Ein Lauf vor der letzten Änderung seiner Rolle misst eine Fassung, die es nicht mehr gibt.
+    # A run before the last change of its role measures a version that no longer exists.
     def current(entry):
         slug = role_of_run(entry, known)
         if slug in changed:
@@ -529,8 +531,8 @@ def check(known, runs, sessions, window_days, changed, locked, loop_since, overr
     for entry in runs + sessions:
         spawned.update(entry["spawned"])
     for slug in sorted(defined - set(spawned)):
-        findings.append(("Tote Definition",
-                         [f"{slug}: in keinem Repo gespawnt, agents/{slug}.md"]))
+        findings.append(("Dead definition",
+                         [f"{slug}: spawned in no repo, agents/{slug}.md"]))
 
     bypassed, shapes = defaultdict(list), defaultdict(list)
     for entry in runs:
@@ -541,35 +543,35 @@ def check(known, runs, sessions, window_days, changed, locked, loop_since, overr
             shapes[shape_of(entry["description"])].append(entry)
     for slug, entries in sorted(bypassed.items()):
         agents = ", ".join(sorted({entry["agent"] or "?" for entry in entries}))
-        findings.append(("Umgangene Definition",
-                         [f"{slug}: {len(entries)} Läufe als {agents} - deren Werkzeuggrenze "
-                          f"galt dabei nicht{repos_of(entries)}"]))
+        findings.append(("Bypassed definition",
+                         [f"{slug}: {len(entries)} runs as {agents} - its tool boundary "
+                          f"did not hold{repos_of(entries)}"]))
     for shape, entries in sorted(shapes.items()):
         if len(entries) < CANDIDATE_RUNS:
             continue
         source = known.get(shape.replace(" ", "-"))
-        note = f"im Plugin {source}" if source else "nirgends beschrieben"
-        findings.append(("Kandidat",
-                         [f"„{shape}“: {len(entries)} Läufe, "
+        note = f"in the plugin, {source}" if source else "documented nowhere"
+        findings.append(("Candidate",
+                         [f"\"{shape}\": {len(entries)} runs, "
                           f"{tokens(sum(entry['total'] for entry in entries))}, {note}"
                           f"{repos_of(entries)}"]))
 
     oversized = [entry for entry in runs if entry["turns"] > limit(entry, "turnBudget", overrides)]
     if oversized:
-        findings.append((f"Falscher Zuschnitt: {len(oversized)} von {len(runs)} Läufen über "
-                         f"dem Turn-Budget", [label(entry) for entry in
+        findings.append((f"Wrong cut: {len(oversized)} of {len(runs)} runs over "
+                         f"the turn budget", [label(entry) for entry in
                                               sorted(oversized, key=lambda e: -e["turns"])]))
     stunted = [entry for entry in runs if entry["turns"] < limit(entry, "minTurns", overrides)]
     if stunted:
-        findings.append((f"Sockel ohne Arbeit: {len(stunted)} Läufe unter der Mindestlänge",
+        findings.append((f"Base without work: {len(stunted)} runs under the minimum length",
                          [label(entry) for entry in stunted]))
 
     swollen = [entry for entry in sessions
                if entry["peak"] > limit(entry, "sessionContext", overrides)]
     if swollen:
-        findings.append((f"Nicht geschnitten: {len(swollen)} Sessions über der Kontextschwelle",
-                         [f"{entry['repo']} „{session_name(entry)}“: {entry['turns']} Turns, "
-                          f"Spitze {tokens(entry['peak'])}" for entry in
+        findings.append((f"Not cut: {len(swollen)} sessions over the context threshold",
+                         [f"{entry['repo']} \"{session_name(entry)}\": {entry['turns']} turns, "
+                          f"peak {tokens(entry['peak'])}" for entry in
                           sorted(swollen, key=lambda e: -e["peak"])]))
 
     blocks = defaultdict(list)
@@ -581,26 +583,26 @@ def check(known, runs, sessions, window_days, changed, locked, loop_since, overr
         if len(items) < CANDIDATE_RUNS:
             continue
         lengths = [length for length, _ in items]
-        findings.append((f"Im Hauptkontext erledigt: {len(lengths)} Blöcke auf „{trigger}“",
-                         [f"ø {sum(lengths) / len(lengths):.0f} Turns ohne Zuruf, längster "
-                          f"{max(lengths)} - dieselbe Arbeit trägt eine Rolle billiger"
+        findings.append((f"Done in the main context: {len(lengths)} blocks on \"{trigger}\"",
+                         [f"ø {sum(lengths) / len(lengths):.0f} turns without a word, longest "
+                          f"{max(lengths)} - a role carries the same work cheaper"
                           f"{repos_of([entry for _, entry in items])}"]))
 
     if runs:
         orientation = Counter()
         for entry in runs:
             orientation.update(f"{entry['repo']}: {doc}" for doc in entry["docs"])
-        repeated = [f"{document}: in {count} von {len(runs)} Läufen gelesen"
+        repeated = [f"{document}: read in {count} of {len(runs)} runs"
                     for document, count in orientation.most_common()
                     if count / len(runs) >= ORIENTATION_SHARE]
         if repeated:
-            findings.append(("Wiederholte Orientierung", repeated))
+            findings.append(("Repeated orientation", repeated))
     return findings
 
 
 def label(entry):
-    return f"{entry['repo']} {entry['agent'] or '?'} „{(entry['description'] or '')[:40]}“: " \
-           f"{entry['turns']} Turns, {tokens(entry['total'])}"
+    return f"{entry['repo']} {entry['agent'] or '?'} \"{(entry['description'] or '')[:40]}\": " \
+           f"{entry['turns']} turns, {tokens(entry['total'])}"
 
 
 def session_name(entry):
@@ -609,12 +611,12 @@ def session_name(entry):
 
 def tokens(value):
     if value >= 1_000_000:
-        return f"{value / 1_000_000:.1f} Mio"
+        return f"{value / 1_000_000:.1f}M"
     return f"{value // 1000}k"
 
 
 def overview(projects, runs, sessions, locked, found):
-    lines = ["Stand:", "  Repos: " + ", ".join(str(p) for p in projects)]
+    lines = ["State:", "  Repos: " + ", ".join(str(p) for p in projects)]
     by_kind = Counter()
     for entry in sessions:
         by_kind[entry["kind"]] += entry["total"]
@@ -625,29 +627,29 @@ def overview(projects, runs, sessions, locked, found):
     by_agent = defaultdict(list)
     for entry in runs:
         by_agent[entry["agent"] or "?"].append(entry)
-    lines.append("  Läufe je Typ:")
+    lines.append("  Runs per type:")
     for agent, entries in sorted(by_agent.items(), key=lambda item: -sum(e["total"] for e in item[1])):
         spend = sum(e["total"] for e in entries)
         turns = sum(e["turns"] for e in entries) / len(entries)
-        lines.append(f"    {agent:18} {len(entries):3} Läufe  {tokens(spend):>9}  "
-                     f"ø {turns:.0f} Turns{repos_of(entries)}")
+        lines.append(f"    {agent:18} {len(entries):3} runs  {tokens(spend):>9}  "
+                     f"ø {turns:.0f} turns{repos_of(entries)}")
     if locked:
-        lines.append(f"  In Sperrfrist (unter {LOCK_RUNS} Läufen seit der letzten Änderung):")
+        lines.append(f"  In lock period (under {LOCK_RUNS} runs since the last change):")
         for slug, (since, count) in sorted(locked.items()):
-            lines.append(f"    {slug:18} seit {since[:10]}, {count} Läufe")
+            lines.append(f"    {slug:18} since {since[:10]}, {count} runs")
     if found is None:
-        lines.append("  Zuordnungen: GitHub nicht erreichbar")
+        lines.append("  Attributions: GitHub unreachable")
     else:
         counted = Counter(place for _, _, _, place, _ in found)
         summary = ", ".join(f"{place} {count}" for place, count in counted.most_common())
-        lines.append(f"  Zuordnungen: {summary or 'keine'}")
+        lines.append(f"  Attributions: {summary or 'none'}")
     return "\n".join(lines)
 
 
 def report(findings, compact):
-    """Lesbar für den Aufruf von Hand. Als Hook je Befund nur die schwersten Fälle, damit der
-    Bericht den Session-Kontext nicht füllt."""
-    lines = ["Agent-Zuschnitt weicht ab (Plugin ouroboros, alle Repos):"]
+    """Readable when called by hand. As a hook only the heaviest cases per finding, so the
+    report does not fill the session context."""
+    lines = ["Agent cut is off (plugin ouroboros, all repos):"]
     grouped = defaultdict(list)
     for kind, texts in findings:
         grouped[kind].extend(texts)
@@ -656,14 +658,14 @@ def report(findings, compact):
         shown = texts[:SHOWN_PER_FINDING] if compact else texts
         lines.extend(f"      {text}" for text in shown)
         if compact and len(texts) > SHOWN_PER_FINDING:
-            lines.append(f"      … {len(texts) - SHOWN_PER_FINDING} weitere")
+            lines.append(f"      … {len(texts) - SHOWN_PER_FINDING} more")
     if compact:
-        lines.append("  Details: agent-usage --full. Zuständig: Agent-Designer, im Plugin-Repo.")
+        lines.append("  Details: agent-usage --full. Owner: Agent-Designer, in the plugin repo.")
     return "\n".join(lines)
 
 
 def projects_to_measure(root):
-    """Alle registrierten Repos, plus das aktuelle, falls es gebunden ist und noch fehlt."""
+    """All registered repos, plus the current one if it is bound and still missing."""
     projects = loopcfg.registered()
     if loopcfg.is_active(root):
         current = loopcfg.main_checkout(root)
@@ -673,7 +675,7 @@ def projects_to_measure(root):
 
 
 def measure(root, window_days=WINDOW_DAYS, budget=None):
-    """(Repos, Läufe, Sessions, ausstehend, Sperren, Befunde, Zuordnungen)."""
+    """(repos, runs, sessions, pending, locks, findings, attributions)."""
     projects = projects_to_measure(root)
     if not projects:
         return projects, [], [], 0, {}, [], []
@@ -697,14 +699,14 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--full", action="store_true",
-                        help="Stand und alle Befunde zeigen, auch ohne Befund")
-    parser.add_argument("--since", type=int, default=WINDOW_DAYS, metavar="TAGE",
-                        help=f"Fenster, in dem ein Lauf noch als Befund zählt "
-                             f"(Default: {WINDOW_DAYS}, 0 für alles)")
+                        help="show the state and all findings, even without a finding")
+    parser.add_argument("--since", type=int, default=WINDOW_DAYS, metavar="DAYS",
+                        help=f"window in which a run still counts as a finding "
+                             f"(default: {WINDOW_DAYS}, 0 for all)")
     parser.add_argument("--hook", action="store_true",
-                        help="Ausgabe als SessionStart-Hook-JSON statt als Text, immer Exit 0 - "
-                             "der Befund gehört in den Session-Kontext, er soll keine Session "
-                             "abbrechen.")
+                        help="output as SessionStart hook JSON instead of text, always exit 0 - "
+                             "the finding belongs in the session context, it must not abort a "
+                             "session.")
     args = parser.parse_args()
 
     root = loopcfg.project_root()
@@ -712,7 +714,7 @@ def main():
         projects, runs, sessions, pending, locked, findings, found = measure(
             root, args.since, HOOK_BUDGET_SECONDS if args.hook else None)
     except OSError as error:
-        print(f"agent-usage: übersprungen ({error})", file=sys.stderr)
+        print(f"agent-usage: skipped ({error})", file=sys.stderr)
         return 0
 
     if args.hook:
@@ -724,18 +726,19 @@ def main():
         return 0
 
     if not projects:
-        print("Kein Repo im Register. Ein Repo kommt hinein, sobald dort eine Session startet, "
-              "in der der Loop läuft.")
+        print("No repo in the registry. A repo enters it as soon as a session starts there "
+              "in which the loop runs.")
         return 0
     if args.full:
         print(overview(projects, runs, sessions, locked, found))
         if pending:
-            print(f"  ({pending} Transkripte noch nicht eingelesen)")
+            print(f"  ({pending} transcripts not read in yet)")
         print()
     if not findings:
         if args.full:
-            print(f"Zuschnitt passt: in {args.since or 'allen'} Tagen keine tote Definition, "
-                  f"kein Kandidat, kein Ausreißer.")
+            print(f"Cut fits: in {args.since or 'all'} days no dead definition, "
+                  f"no candidate, no outlier.")
+
         return 0
     print(report(findings, compact=False))
     return 1

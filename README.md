@@ -1,46 +1,58 @@
 # Ouroboros
 
-Ein Claude-Code-Plugin für einen rollenbasierten Delivery-Loop, der sich selbst verbessert — wie
-die Schlange, die sich in den Schwanz beißt: Project Manager, Architect,
-Product Owner, Developer, Reviewer, Triage und Agent-Designer. Für Repos mit Roadmap, mit
-Issues oder mit Aufträgen aus dem Chat — und für fremde Repos, die unberührt bleiben sollen.
+A Claude Code plugin for a role-based delivery loop that improves itself — like the snake biting
+its own tail: Project Manager, Architect, Product Owner, Developer, Reviewer, Triage and
+Agent-Designer. For repos with a roadmap, with issues, or with orders from the chat — and for
+someone else's repos that are to stay untouched.
 
-## Aufteilung
+## Split
 
-Es gibt nur zwei Orte:
+There are only two places:
 
-- **Das Plugin** (dieses Repo): Rollen, Loop-Vertrag mit Triggern, Konventionen, Prüfungen.
-  Gleich für jedes Repo.
-- **Das Projekt selbst**: was es über sich weiß — Testbefehl, Sprache, Fallen — steht in seiner
-  eigenen CLAUDE.md und Doku, wie ohne Plugin auch.
+- **The plugin** (this repo): roles, the loop contract with its triggers, conventions, checks.
+  The same for every repo.
+- **The project itself**: what it knows about itself — test command, language, pitfalls — lives
+  in its own CLAUDE.md and docs, as it would without the plugin.
 
-Dazu merkt sich das Plugin deine Antworten: Code geht immer, alles andere — Push, PR, Issues,
-Labels, ADRs, … — fragt es einmal pro Repo und schreibt die Antwort nach `.git/ouroboros.json`
-im Clone. Git versioniert dort nichts, ein fremdes Repo bleibt unberührt. Ein eigenes Repo kann
-alles auf einmal erlauben, in `.claude/ouroboros.json`. Siehe `docs/permissions.md`.
+On top of that the plugin remembers your answers: code is always fine, everything else — push,
+PR, issues, labels, ADRs, … — it asks once per repo and writes the answer to
+`.git/ouroboros.json` in the clone. Git versions nothing there, so a foreign repo stays
+untouched. A repo of your own can allow everything at once, in `.claude/ouroboros.json`. See
+`docs/permissions.md`.
 
-## Einrichten, einmal pro Gerät
+## Triggers
+
+You start a role by naming a unit, in English or German: "continue with M2" / "weiter mit M2",
+"cut M2.3" / "schnitt M2.3", "order: …" / "auftrag: …", and so on. The full list is in
+`docs/loop.md`.
+
+## Install, once per machine
 
 ```bash
 claude plugin marketplace add Sorong/ouroboros
 claude plugin install ouroboros@ouroboros
 ```
 
-Dann in `~/.claude/settings.json` beim Marktplatz `"autoUpdate": true`. Ab da kommt jeder Commit
-auf `main` beim nächsten Sessionstart auf das Gerät (`/reload-plugins` übernimmt ihn sofort).
-Ein Repo, das das Plugin in seiner `.claude/settings.json` einschaltet (wie TD), bietet es auf
-einem neuen Gerät von selbst zur Installation an.
+Then set `"autoUpdate": true` for the marketplace in `~/.claude/settings.json`. From then on
+every commit on `main` reaches the machine at the next session start (`/reload-plugins` picks it
+up immediately). A repo that enables the plugin in its `.claude/settings.json` offers it for
+installation on a new machine by itself.
 
-## Ändern
+## Changing it
 
-Die Rollen ändert der Agent-Designer, in einer Session in diesem Repo („weiter mit Agents"), auf
-gemessene Muster hin und per PR. Der Merge auf `main` ist der Release — das Manifest führt keine
-`version`, Claude Code nimmt den Commit. Vorher läuft `scripts/selfcheck.py`, in der CI noch einmal.
+The Agent-Designer changes the roles, in a session in this repo ("continue with agents"), on
+measured patterns and by PR. The merge to `main` is the release — the manifest has no
+`version`, Claude Code takes the commit. `scripts/selfcheck.py` runs before that, and once more
+in CI.
 
-## Messung über alle Repos
+## Measuring across all repos
 
-`agent-usage` liest die Transkripte jedes Repos im Register (`~/.claude/ouroboros/projects.json`,
-je Gerät) und die Zuordnungen aus PR-Antworten und aus `loop-note`.
-Sperrfristen und Muster zählen über alle Repos, denn die Definition ist dieselbe. Die
-Änderungszeitpunkte der Rollen kommen aus der Git-Geschichte dieses Repos, ohne lokalen Clone
-über die GitHub-API.
+`agent-usage` reads the transcripts of every repo in the registry
+(`~/.claude/ouroboros/projects.json`, per machine) and the attributions from PR replies and from
+`loop-note`. Lock periods and patterns count across all repos, because the definition is the
+same. The roles' change times come from this repo's Git history, or via the GitHub API when
+there is no local clone.
+
+## License
+
+[MIT](LICENSE)

@@ -74,27 +74,31 @@ Aborting is a normal outcome. Guessing at another receiver's question is the fai
 ## Triggers
 
 The stakeholder names a unit or a level and means "act as that role" — no need to also say "you
-are the X". „wir bearbeiten \<X>" is the same trigger as „weiter mit \<X>" — the wording below is
-a short form, not a password. Each trigger loads the role's skill.
+are the X". Each trigger comes in English and in German, and both mean the same. "we're working
+on \<X>" / "wir bearbeiten \<X>" is the same trigger as "continue with \<X>" / "weiter mit \<X>" —
+the wording below is a short form, not a password. Each trigger loads the role's skill.
 
-- "weiter mit M\<N>" → Project Manager — strategy only, with a roadmap: an idea measured against
-  it, or a finished step ticked off. He does not hand work out.
-- "weiter mit M\<N>.\<k>" → Architect, concept stage of that roadmap step. Naming it *is* the
-  priority call — yours, not a session's. A dialogue: the Architect does its reading alone and
-  then grills you. With nothing to decide it hands on to the Product Owner in the same session.
-- "weiter mit #\<n>" → read the issue fresh (`gh issue view <n> --comments`). Where the repo uses
-  the loop's labels, they decide: `ready-for-agent` → Product Owner, `needs-refinement` →
-  Architect, `needs-triage` → Triage, anything else → ask which role. Where it doesn't, the issue
-  is a new unit → Architect, concept stage. A closed issue is done; report that instead.
-- "auftrag: \<text>", or any task you give as the work to do → an order → Architect, concept
-  stage. It writes the sharpened spec back to you before anything is cut.
-- "schnitt \<unit>" → Product Owner, cutting that unit — after its concept is settled.
-- "abschluss M\<N>.\<k>" → Product Owner, close-out of a roadmap step. The `SessionStart` hook
-  reports on its own when this is due.
-- "review zu #\<n>" → Product Owner, who spawns the Developer in the worktree its branch still
-  sits in, with your feedback on the open PR.
-- "weiter mit Agents" → Agent-Designer, in a session in the plugin's repo. Said in a project
-  session, it names the plugin repo and stops.
+- "continue with M\<N>" / "weiter mit M\<N>" → Project Manager — strategy only, with a roadmap:
+  an idea measured against it, or a finished step ticked off. He does not hand work out.
+- "continue with M\<N>.\<k>" / "weiter mit M\<N>.\<k>" → Architect, concept stage of that roadmap
+  step. Naming it *is* the priority call — yours, not a session's. A dialogue: the Architect
+  does its reading alone and then grills you. With nothing to decide it hands on to the Product
+  Owner in the same session.
+- "continue with #\<n>" / "weiter mit #\<n>" → read the issue fresh (`gh issue view <n>
+  --comments`). Where the repo uses the loop's labels, they decide: `ready-for-agent` → Product
+  Owner, `needs-refinement` → Architect, `needs-triage` → Triage, anything else → ask which
+  role. Where it doesn't, the issue is a new unit → Architect, concept stage. A closed issue is
+  done; report that instead.
+- "order: \<text>" / "auftrag: \<text>", or any task you give as the work to do → an order →
+  Architect, concept stage. It writes the sharpened spec back to you before anything is cut.
+- "cut \<unit>" / "schnitt \<unit>" → Product Owner, cutting that unit — after its concept is
+  settled.
+- "close out M\<N>.\<k>" / "abschluss M\<N>.\<k>" → Product Owner, close-out of a roadmap step.
+  The `SessionStart` hook reports on its own when this is due.
+- "review on #\<n>" / "review zu #\<n>" → Product Owner, who spawns the Developer in the worktree
+  its branch still sits in, with your feedback on the open PR.
+- "continue with agents" / "weiter mit Agents" → Agent-Designer, in a session in the plugin's
+  repo. Said in a project session, it names the plugin repo and stops.
 
 The Developer never runs as the session itself. The review gate needs someone above it who
 didn't write the draft, and in a Developer session nobody is.

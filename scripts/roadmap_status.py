@@ -1,29 +1,30 @@
 #!/usr/bin/env python3
-"""Prüft, ob der dokumentierte Roadmap-Stand zu dem passt, was auf main liegt.
+"""Checks whether the documented roadmap state fits what is on main.
 
-Sechs Prüfungen:
+Six checks:
 
-1. **Nachtrag fällig** — Schritte, deren Commits auf `main` liegen (Betreff-Präfix
-   `M<N>.<k>`), die in `docs/roadmap/m<N>.md` aber kein Häkchen haben.
-2. **Zähler-Drift** — die abgeleiteten Anzeigen in `docs/roadmap.md` (`offen (k/n)`) und
-   `README.md` (Fortschrittsbalken + `k/n Schritte`) gegen die Häkchen, die die Quelle sind.
-3. **Stale Zeiger** — "Nächster konkreter Schritt" in `docs/roadmap.md`, obwohl der Schritt
-   bereits abgehakt ist oder Commits auf `main` hat.
-4. **Wiedervorlage fällig** — offene Issues mit `revisit:m<N>`/`revisit:m<N>.<k>`, deren
-   Auslösepunkt die Roadmap inzwischen erreicht hat (siehe `loop-doc triage-labels`).
-   Braucht `gh` und Netz; ohne beides entfällt still nur diese Prüfung.
-5. **Code-Bezeichner** — Typ- und Methodennamen in den Roadmap-Dateien. Die Roadmap nennt
-   Entscheidungen, keinen Code (siehe `loop-doc house-style`). Die Regel selbst
-   steht in docstyle.py, das sie auch für ADRs und CONTEXT.md prüft.
-6. **Satzregel** — ein Gedanke pro Satz in den Roadmap-Dateien: höchstens 30 Wörter, höchstens
-   ein Gedankenstrich, kein Semikolon (siehe `loop-doc house-style`). Der Prüfer ist
-   derselbe wie für ADRs und CONTEXT.md und steht in docstyle.py.
+1. **Close-out due** — steps whose commits are on `main` (subject prefix `M<N>.<k>`) but
+   that have no tick in `docs/roadmap/m<N>.md`.
+2. **Counter drift** — the derived displays in `docs/roadmap.md` (`open (k/n)`) and
+   `README.md` (progress bar + `k/n steps`) against the ticks, which are the source.
+3. **Stale pointer** — the "next concrete step" in `docs/roadmap.md` although that step is
+   already ticked or has commits on `main`.
+4. **Revisit due** — open issues with `revisit:m<N>`/`revisit:m<N>.<k>` whose trigger point the
+   roadmap has reached by now (see `loop-doc triage-labels`). Needs `gh` and a network;
+   without both, only this check drops out, silently.
+5. **Code identifiers** — type and method names in the roadmap files. The roadmap names
+   decisions, not code (see `loop-doc house-style`). The rule itself lives in docstyle.py,
+   which also checks it for ADRs and CONTEXT.md.
+6. **Sentence rule** — one thought per sentence in the roadmap files: at most 30 words, at most
+   one dash, no semicolon (see `loop-doc house-style`). The checker is the same as for ADRs and
+   CONTEXT.md and lives in docstyle.py.
 
-Die Form, die gelesen wird, beschreibt `loop-doc roadmap`. Geprüft wird nur ein Repo, das den
-Loop selbst trägt (`.claude/ouroboros.json`) und eine docs/roadmap.md hat.
+The shape that is read is described in `loop-doc roadmap`, in English or German wording. Only a
+repo that carries the loop itself (`.claude/ouroboros.json`) and has a docs/roadmap.md is
+checked.
 
-Ohne Befund: keine Ausgabe, Exit 0 — damit es als SessionStart-Hook nicht stört.
-Mit Befund: Bericht auf stdout, Exit 1.
+No finding: no output, exit 0 — so it stays out of the way as a SessionStart hook.
+With findings: report on stdout, exit 1.
 """
 
 import argparse
@@ -40,17 +41,22 @@ from docstyle import identifiers_in, sentences_in, shorten
 BAR_FULL = "█"
 BAR_EMPTY = "░"
 
-# Commit-Konvention: "M2.3 Text". Siehe `loop-doc git`.
+# Commit convention: "M2.3 Text". See `loop-doc git`.
 COMMIT_STEP = re.compile(r"^M(\d+)\.(\d+)\b")
-# Alt-Bestand vor der Konvention: "Text (#51)" -> Issue-Titel "... (M2 Schritt 3)".
+# A step named in prose: "M2 step 3", or the German "M2 Schritt 3".
+NAMED_STEP = re.compile(r"\bM(\d+)\s+(?:step|Schritt)\s+(\d+)\b", re.IGNORECASE)
+# Legacy commits from before the convention: "Text (#51)" -> issue title "... (M2 step 3)".
 COMMIT_ISSUE = re.compile(r"\(#(\d+)\)")
-ISSUE_STEP = re.compile(r"\bM(\d+)\s+Schritt\s+(\d+)\b")
+ISSUE_STEP = NAMED_STEP
 
 STEP_LINE = re.compile(r"^(\d+)\.\s+(✅\s*)?(.*)$")
 OVERVIEW_ROW = re.compile(r"^\|\s*M(\d+)\s*\|")
-NEXT_STEP = re.compile(r"\bM(\d+)\s+Schritt\s+(\d+)\b")
+NEXT_STEP = NAMED_STEP
+# The section that names the next step, in English or German.
+NEXT_STEP_HEADING = re.compile(
+    r"^##\s+(?:Next concrete step|Nächster konkreter Schritt)\s*$", re.IGNORECASE | re.MULTILINE)
 COUNTER = re.compile(r"(\d+)\s*/\s*(\d+)")
-# Wiedervorlage-Konvention: "revisit:m5", "revisit:m2.6". Siehe `loop-doc triage-labels`.
+# Revisit convention: "revisit:m5", "revisit:m2.6". See `loop-doc triage-labels`.
 REVISIT_LABEL = re.compile(r"^revisit:m(\d+)(?:\.(\d+))?$")
 
 
@@ -63,13 +69,13 @@ def run(args, cwd=None):
 
 
 def commit_subjects(root, ref):
-    """Betreffzeilen von <ref>. Bewusst nicht HEAD: eine Developer-Session sitzt auf einem
-    Feature-Branch, dessen Commits noch nicht gemergt sind."""
+    """The subject lines of <ref>. Deliberately not HEAD: a Developer session sits on a feature
+    branch whose commits are not merged yet."""
     return run(["git", "log", "--format=%s", ref], cwd=root).splitlines()
 
 
 def steps_on_ref(subjects, issue_titles=None):
-    """{Meilenstein: {Schritt, ...}} aus den Commit-Betreffs."""
+    """{milestone: {step, ...}} from the commit subjects."""
     found = {}
     for subject in subjects:
         match = COMMIT_STEP.match(subject)
@@ -83,14 +89,14 @@ def steps_on_ref(subjects, issue_titles=None):
 
 
 def issue_titles(root):
-    """Alt-Bestand: Schrittnummern aus Issue-Titeln, für Commits ohne Präfix. Braucht Netz."""
+    """Legacy: step numbers from issue titles, for commits without a prefix. Needs a network."""
     raw = run(["gh", "issue", "list", "--state", "all", "--limit", "300",
                "--json", "number,title"], cwd=root)
     return {entry["number"]: entry["title"] for entry in json.loads(raw)}
 
 
 def parse_steps(path):
-    """[(Nummer, abgehakt)] aus docs/roadmap/m<N>.md."""
+    """[(number, ticked)] from docs/roadmap/m<N>.md."""
     steps = []
     for line in path.read_text(encoding="utf-8").splitlines():
         match = STEP_LINE.match(line)
@@ -100,7 +106,7 @@ def parse_steps(path):
 
 
 def parse_table(path, status_column):
-    """{Meilenstein: Statuszelle} aus einer Markdown-Tabelle mit M<N>-Zeilen."""
+    """{milestone: status cell} from a Markdown table with M<N> rows."""
     rows = {}
     for line in path.read_text(encoding="utf-8").splitlines():
         if OVERVIEW_ROW.match(line) is None:
@@ -113,13 +119,15 @@ def parse_table(path, status_column):
 
 def parse_next_step(path):
     text = path.read_text(encoding="utf-8")
-    _, _, tail = text.partition("## Nächster konkreter Schritt")
-    match = NEXT_STEP.search(tail)
+    heading = NEXT_STEP_HEADING.search(text)
+    if heading is None:
+        return None
+    match = NEXT_STEP.search(text, heading.end())
     return (int(match.group(1)), int(match.group(2))) if match else None
 
 
 def parked_issues(root):
-    """[(Nummer, Titel, [(Meilenstein, Schritt|None), ...])] offener Issues mit revisit-Label."""
+    """[(number, title, [(milestone, step|None), ...])] of open issues with a revisit label."""
     raw = run(["gh", "issue", "list", "--state", "open", "--limit", "300",
                "--json", "number,title,labels"], cwd=root)
     parked = []
@@ -136,9 +144,9 @@ def parked_issues(root):
 
 
 def current_position(overview, steps):
-    """(Meilenstein, nächster Schritt) — erster Meilenstein der Übersicht ohne Häkchen, und
-    darin der erste Schritt ohne Häkchen. Schritt ist None, wenn es für den Meilenstein noch
-    keine Schrittdatei gibt (Grobplan)."""
+    """(milestone, next step) — the overview's first milestone without a tick, and in it the
+    first step without a tick. The step is None if the milestone has no step file yet (rough
+    plan)."""
     open_milestones = [n for n, cell in sorted(overview.items()) if "✅" not in cell]
     if not open_milestones:
         return None, None
@@ -148,12 +156,12 @@ def current_position(overview, steps):
 
 
 def revisit_due(trigger, position):
-    """Ist der Auslösepunkt erreicht? Ein Meilenstein-Auslöser wird mit dem Meilenstein fällig,
-    ein Schritt-Auslöser, sobald sein Schritt der nächste ist."""
+    """Has the trigger point been reached? A milestone trigger falls due with the milestone, a
+    step trigger as soon as its step is the next one."""
     milestone, step = trigger
     current_milestone, next_step = position
     if current_milestone is None:
-        return True  # kein offener Meilenstein mehr: jeder Auslösepunkt liegt in der Vergangenheit.
+        return True  # no open milestone left: every trigger point lies in the past.
     if milestone != current_milestone:
         return milestone < current_milestone
     if step is None:
@@ -167,7 +175,7 @@ def expected_bar(done, total, width):
 
 
 def roadmap_files(root):
-    """[(Anzeigename, Text)] — die Dateien, die Entscheidungen tragen sollen."""
+    """[(display name, text)] — the files that are meant to carry decisions."""
     paths = [root / "docs" / "roadmap.md"]
     paths += sorted((root / "docs" / "roadmap").glob("m*.md"))
     return [(path.relative_to(root).as_posix(), path.read_text(encoding="utf-8"))
@@ -175,7 +183,7 @@ def roadmap_files(root):
 
 
 def code_identifiers(root):
-    """[(Datei, Zeilennummer, Bezeichner)] — Code in den Roadmap-Dateien."""
+    """[(file, line number, identifier)] — code in the roadmap files."""
     found = []
     for label, text in roadmap_files(root):
         for number, line in enumerate(text.splitlines(), start=1):
@@ -184,7 +192,7 @@ def code_identifiers(root):
 
 
 def long_sentences(root):
-    """[(Datei, Zeilennummer, Satz, Verstoß)] — Sätze der Roadmap-Dateien gegen die Satzregel."""
+    """[(file, line number, sentence, violation)] — roadmap sentences against the sentence rule."""
     found = []
     for label, text in roadmap_files(root):
         found += [(label, number, sentence, reason)
@@ -204,16 +212,16 @@ def check(root, ref, via_issues):
     titles = issue_titles(root) if via_issues else None
     on_ref = steps_on_ref(commit_subjects(root, ref), titles)
 
-    # 1. Nachtrag fällig
+    # 1. Close-out due
     for milestone in sorted(on_ref):
         pending = sorted(on_ref[milestone] - done.get(milestone, set()))
         for step in pending:
             findings.append(
-                f"Nachtrag fällig: M{milestone}.{step} liegt auf {ref}, "
-                f"aber docs/roadmap/m{milestone}.md hat dort kein Häkchen."
+                f"Close-out due: M{milestone}.{step} is on {ref}, "
+                f"but docs/roadmap/m{milestone}.md has no tick there."
             )
 
-    # 2. Zähler-Drift gegen die Häkchen
+    # 2. Counter drift against the ticks
     overview = parse_table(root / "docs" / "roadmap.md", 4)
     readme = parse_table(root / "README.md", 3) if (root / "README.md").is_file() else {}
     for milestone, entries in sorted(steps.items()):
@@ -226,63 +234,63 @@ def check(root, ref, via_issues):
             if counter is None:
                 if complete != total and "✅" in cell:
                     findings.append(
-                        f"Zähler-Drift: {label} meldet M{milestone} als erledigt, "
-                        f"docs/roadmap/m{milestone}.md hat aber nur {complete}/{total} Häkchen."
+                        f"Counter drift: {label} reports M{milestone} as done, "
+                        f"but docs/roadmap/m{milestone}.md has only {complete}/{total} ticks."
                     )
                 continue
             shown = (int(counter.group(1)), int(counter.group(2)))
             if shown != (complete, total):
                 findings.append(
-                    f"Zähler-Drift: {label} zeigt M{milestone} als {shown[0]}/{shown[1]}, "
-                    f"docs/roadmap/m{milestone}.md hat {complete}/{total} Häkchen."
+                    f"Counter drift: {label} shows M{milestone} as {shown[0]}/{shown[1]}, "
+                    f"docs/roadmap/m{milestone}.md has {complete}/{total} ticks."
                 )
             bar = re.search(f"[{BAR_FULL}{BAR_EMPTY}]+", cell)
             if bar is not None:
                 want = expected_bar(complete, total, len(bar.group(0)))
                 if bar.group(0) != want:
                     findings.append(
-                        f"Balken-Drift: {label} zeigt M{milestone} als "
-                        f"`{bar.group(0)}`, richtig wäre `{want}`."
+                        f"Bar drift: {label} shows M{milestone} as "
+                        f"`{bar.group(0)}`, it should be `{want}`."
                     )
 
-    # 3. Stale Zeiger
+    # 3. Stale pointer
     pointer = parse_next_step(root / "docs" / "roadmap.md")
     if pointer is not None:
         milestone, step = pointer
         if step in done.get(milestone, set()) or step in on_ref.get(milestone, set()):
             findings.append(
-                f"Stale Zeiger: docs/roadmap.md nennt M{milestone} Schritt {step} als "
-                f"nächsten Schritt, der ist aber schon erledigt."
+                f"Stale pointer: docs/roadmap.md names M{milestone} step {step} as the "
+                f"next step, but it is already done."
             )
 
-    # 5. Code-Bezeichner
+    # 5. Code identifiers
     for label, number, token in code_identifiers(root):
         findings.append(
-            f"Code-Bezeichner: {label}:{number} nennt `{token}`. Die Roadmap verweist auf ADRs "
-            f"und benutzt CONTEXT.md-Begriffe, siehe loop-doc house-style."
+            f"Code identifier: {label}:{number} names `{token}`. The roadmap points at ADRs "
+            f"and uses CONTEXT.md terms, see loop-doc house-style."
         )
 
-    # 6. Satzregel
+    # 6. Sentence rule
     for label, number, sentence, reason in long_sentences(root):
         findings.append(
-            f"Satzregel: {label}:{number} {reason}: „{shorten(sentence)}\". Ein Gedanke pro "
-            f"Satz, siehe loop-doc house-style."
+            f"Sentence rule: {label}:{number} {reason}: \"{shorten(sentence)}\". One thought per "
+            f"sentence, see loop-doc house-style."
         )
 
-    # 4. Wiedervorlage fällig
+    # 4. Revisit due
     revisits = []
     position = current_position(overview, steps)
     try:
         parked = parked_issues(root)
     except (RuntimeError, OSError):
-        parked = []  # ohne gh/Netz entfällt nur diese Prüfung, nicht der ganze Bericht.
+        parked = []  # without gh/network only this check drops out, not the whole report.
     for number, title, triggers in parked:
         due = [t for t in triggers if revisit_due(t, position)]
         if not due:
             continue
         milestone, step = min(due, key=lambda t: (t[0], -1 if t[1] is None else t[1]))
-        at = f"M{milestone}" if step is None else f"M{milestone} Schritt {step}"
-        revisits.append(f"#{number} wollte bei {at} nochmal angesehen werden: {title}")
+        at = f"M{milestone}" if step is None else f"M{milestone} step {step}"
+        revisits.append(f"#{number} asked to be looked at again at {at}: {title}")
 
     return findings, revisits
 
@@ -290,15 +298,15 @@ def check(root, ref, via_issues):
 def report(findings, revisits):
     lines = []
     if findings:
-        lines.append("Roadmap-Stand weicht ab:")
+        lines.append("Roadmap state is off:")
         lines += [f"  - {f}" for f in findings]
-        lines.append("  Nachtragen per Abschluss-Konvention: \"abschluss M<N>.<k>\" "
-                     "(ouroboros:product-owner).")
+        lines.append("  Catch up via the close-out: \"close out M<N>.<k>\" / \"abschluss "
+                     "M<N>.<k>\" (ouroboros:product-owner).")
     if revisits:
-        lines.append("Wiedervorlage fällig:")
+        lines.append("Revisit due:")
         lines += [f"  - {r}" for r in revisits]
-        lines.append("  Erneut triagieren (ouroboros:triage) — das Urteil liegt beim "
-                     "Stakeholder, nicht bei der Session.")
+        lines.append("  Triage again (ouroboros:triage) — the verdict is the stakeholder's, "
+                     "not the session's.")
     return "\n".join(lines)
 
 
@@ -306,24 +314,24 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--ref", default="main",
-                        help="Referenz, die den gemergten Stand trägt (Default: main)")
+                        help="ref that carries the merged state (default: main)")
     parser.add_argument("--via-issues", action="store_true",
-                        help="Alt-Commits ohne M<N>.<k>-Präfix über ihre (#n)-Referenz und den "
-                             "Issue-Titel auflösen. Braucht gh und Netz.")
+                        help="resolve legacy commits without an M<N>.<k> prefix via their (#n) "
+                             "reference and the issue title. Needs gh and a network.")
     parser.add_argument("-v", "--verbose", action="store_true",
-                        help="auch bei sauberem Stand eine Zeile ausgeben")
+                        help="print a line even when the state is clean")
     parser.add_argument("--hook", action="store_true",
-                        help="Ausgabe als SessionStart-Hook-JSON statt als Text, immer Exit 0 - "
-                             "der Befund gehört in den Session-Kontext, er soll keine Session "
-                             "abbrechen.")
+                        help="output as SessionStart hook JSON instead of text, always exit 0 - "
+                             "the finding belongs in the session context, it must not abort a "
+                             "session.")
     args = parser.parse_args()
 
     try:
         root = loopcfg.project_root()
         findings, revisits = check(root, args.ref, args.via_issues)
     except (RuntimeError, OSError) as error:
-        # Als SessionStart-Hook darf das nie eine Session blockieren.
-        print(f"roadmap-status: übersprungen ({error})", file=sys.stderr)
+        # As a SessionStart hook this must never block a session.
+        print(f"roadmap-status: skipped ({error})", file=sys.stderr)
         return 0
 
     if args.hook:
@@ -336,7 +344,8 @@ def main():
 
     if not findings and not revisits:
         if args.verbose:
-            print("Roadmap-Stand ist konsistent, keine Wiedervorlage fällig.")
+            print("Roadmap state is consistent, no revisit due.")
+
         return 0
 
     print(report(findings, revisits))
