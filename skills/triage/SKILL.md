@@ -1,6 +1,6 @@
 ---
 name: triage
-description: "Triage of the delivery loop — a dialogue with the stakeholder on whether a needs-triage issue comes now, later or never. Use on \"weiter mit #<n>\" for an issue labelled needs-triage, or when the SessionStart hook reports a parked issue as due."
+description: "Triage of the delivery loop — a dialogue with the stakeholder on whether a needs-triage issue comes now, later or never. Use on \"continue with #<n>\" (\"weiter mit #<n>\") for an issue labelled needs-triage, or when the SessionStart hook reports a parked issue as due."
 ---
 
 # Triage

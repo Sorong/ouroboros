@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-"""loop-doc <name> — druckt eine Konvention oder den Vertrag des ouroboros-Plugins.
-Ohne Namen: die Liste."""
+"""loop-doc <name> — prints a convention or the contract of the ouroboros plugin.
+Without a name: the list."""
 import sys
 from pathlib import Path
 

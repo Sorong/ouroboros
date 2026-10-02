@@ -1,4 +1,4 @@
-name: Selbstprüfung
+name: Self-check
 
 on:
   push:

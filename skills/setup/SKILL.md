@@ -1,6 +1,6 @@
 ---
 name: setup
-description: "Verankert den Delivery-Loop in einem eigenen Repo — alles erlauben, Labels, Gerüst für Roadmap, ADRs, CONTEXT.md und Code-Prinzipien. Nicht nötig für fremde Repos: dort läuft der Loop ohne Einrichtung und fragt einmal, was er darf. Use when the stakeholder wants their own repo to carry the delivery loop."
+description: "Anchors the delivery loop in the stakeholder's own repo — allow everything, labels, scaffolding for roadmap, ADRs, CONTEXT.md and code principles. Not needed for someone else's repo: there the loop runs without setup and asks once what it may do. Use when the stakeholder wants their own repo to carry the delivery loop."
 disable-model-invocation: true
 ---
 
@@ -43,7 +43,8 @@ Never overwrite. Each file starts as small as the conventions allow:
   domain. `/domain-modeling` fills it later.
 - `docs/adr/README.md` — the ADR house format, in the stakeholder's language. Ask whether
   existing ADRs predate it; the first number the rules apply to goes into
-  `.claude/ouroboros.json`.
+  `.claude/ouroboros.json`, and so do section headings that aren't the English defaults
+  (`adrSections`, `loop-doc house-style`).
 - `docs/code-principles.md` — a header saying the Architect owns it and every rule carries its
   violation as evidence. No rules yet: a rule comes in with its first violation.
 - Labels per `loop-doc triage-labels`, created with `gh label create`.

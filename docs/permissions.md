@@ -11,7 +11,7 @@ repo is asked once, and the answer is remembered.
 | `pr` | opening a pull request |
 | `issues` | creating issues and commenting on them |
 | `labels` | creating and changing labels, including the loop's label set |
-| `pr-comments` | replies in a PR, e.g. the Product Owner's `Zuordnung:` |
+| `pr-comments` | replies in a PR, e.g. the Product Owner's `Attribution:` |
 | `adr` | files under `docs/adr/` |
 | `context` | `CONTEXT.md` |
 | `roadmap` | `docs/roadmap.md`, `docs/roadmap/` |

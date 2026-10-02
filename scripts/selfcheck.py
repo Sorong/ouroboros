@@ -1,17 +1,17 @@
 #!/usr/bin/env python3
-"""Prüft das Plugin, bevor es ausgerollt wird — lokal und in der CI.
+"""Checks the plugin before it rolls out — locally and in CI.
 
-Jeder Commit auf `main` ist eine neue Version (das Manifest führt keine `version`, Claude Code
-nimmt den Commit). Was hier nicht auffällt, landet beim nächsten Sessionstart auf jedem Gerät.
+Every commit on `main` is a new version (the manifest has no `version`, Claude Code takes the
+commit). Whatever slips through here lands on every device at the next session start.
 
-1. Manifeste sind gültiges JSON, das Plugin heißt wie der Marktplatz-Eintrag.
-2. Jeder Skill und jeder Agent hat Frontmatter mit `name` und `description`, und das
-   Frontmatter ist gültiges YAML — eine Beschreibung mit „: " ohne Anführungszeichen kommt
-   sonst leer an.
-3. Jedes Skript kompiliert.
-4. Jedes `loop-doc <name>` in den Texten gibt es unter `docs/`.
-5. Der Hook bleibt in einem Repo ohne Loop still und schreibt gültiges JSON in einem
-   Wegwerf-Repo, das den Loop trägt.
+1. The manifests are valid JSON, and the plugin is named like the marketplace entry.
+2. Every skill and every agent has frontmatter with `name` and `description`, and the
+   frontmatter is valid YAML — a description containing ": " without quotes would otherwise
+   arrive empty.
+3. Every script compiles.
+4. Every `loop-doc <name>` in the texts exists under `docs/`.
+5. The hook stays silent in a repo without the loop and writes valid JSON in a throwaway repo
+   that carries the loop.
 """
 
 import json
@@ -48,9 +48,9 @@ def check_manifests():
         fail(f"Manifest: {error}")
         return
     if plugin.get("name") not in {entry.get("name") for entry in market.get("plugins", [])}:
-        fail("Manifest: plugin.json-Name fehlt in marketplace.json")
+        fail("Manifest: the plugin.json name is missing from marketplace.json")
     if "version" in plugin:
-        fail("Manifest: plugin.json führt eine version — dann zählt ein Commit nicht als Update")
+        fail("Manifest: plugin.json has a version — then a commit does not count as an update")
 
 
 def check_frontmatter():
@@ -62,24 +62,24 @@ def check_frontmatter():
         block = frontmatter(path)
         label = path.relative_to(ROOT).as_posix()
         if block is None:
-            fail(f"{label}: kein Frontmatter")
+            fail(f"{label}: no frontmatter")
             continue
         if yaml is not None:
             try:
                 data = yaml.safe_load(block)
             except yaml.YAMLError as error:
-                fail(f"{label}: Frontmatter ist kein YAML ({error})")
+                fail(f"{label}: frontmatter is not YAML ({error})")
                 continue
-        else:  # ohne PyYAML: die häufigste Falle von Hand prüfen
+        else:  # without PyYAML: check the most common trap by hand
             data = {}
             for line in block.splitlines():
                 key, _, value = line.partition(": ")
                 if value and not value.startswith(('"', "'")) and ": " in value:
-                    fail(f"{label}: `{key}` enthält „: “ ohne Anführungszeichen")
+                    fail(f"{label}: `{key}` contains \": \" without quotes")
                 data[key] = value
         for key in ("name", "description"):
             if not data.get(key):
-                fail(f"{label}: `{key}` fehlt oder ist leer")
+                fail(f"{label}: `{key}` is missing or empty")
 
 
 def check_scripts():
@@ -96,7 +96,7 @@ def check_doc_references():
                  *ROOT.glob("docs/*.md")]:
         for name in re.findall(r"loop-doc ([a-z-]+)", path.read_text(encoding="utf-8")):
             if name not in names:
-                fail(f"{path.relative_to(ROOT).as_posix()}: `loop-doc {name}` gibt es nicht")
+                fail(f"{path.relative_to(ROOT).as_posix()}: `loop-doc {name}` does not exist")
 
 
 def check_hook():
@@ -114,15 +114,15 @@ def check_hook():
         quiet = subprocess.run([sys.executable, str(hook)], cwd=unbound, env=env,
                                capture_output=True, text=True, encoding="utf-8")
         if quiet.returncode or quiet.stdout.strip():
-            fail(f"Hook ohne Loop nicht still: {quiet.stdout[:200]} {quiet.stderr[:200]}")
+            fail(f"Hook not silent without the loop: {quiet.stdout[:200]} {quiet.stderr[:200]}")
         loud = subprocess.run([sys.executable, str(hook)], cwd=bound, env=env,
                               capture_output=True, text=True, encoding="utf-8")
         try:
             context = json.loads(loud.stdout)["hookSpecificOutput"]["additionalContext"]
             if "# Delivery loop" not in context:
-                fail("Hook mit Loop legt den Vertrag nicht in den Kontext")
+                fail("Hook with the loop does not put the contract into the context")
         except (ValueError, KeyError):
-            fail(f"Hook mit Loop schreibt kein gültiges JSON: {loud.stdout[:200]} "
+            fail(f"Hook with the loop writes no valid JSON: {loud.stdout[:200]} "
                  f"{loud.stderr[:200]}")
 
 
@@ -134,10 +134,11 @@ def main():
     check_hook()
     sys.stdout.reconfigure(encoding="utf-8")
     if errors:
-        print("Selbstprüfung fehlgeschlagen:")
+        print("Self-check failed:")
         print("\n".join(f"  - {error}" for error in errors))
         return 1
-    print("Selbstprüfung bestanden.")
+    print("Self-check passed.")
+
     return 0
 
 

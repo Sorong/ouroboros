@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""Befehle des Plugins für die Shell, je ein Eintrag in `bin/`:
+"""The plugin's shell commands, one entry each in `bin/`:
 
-- `loop-permission` — zeigt, was im aktuellen Repo erlaubt, verboten oder noch offen ist.
-- `loop-permission <art> <yes|no>` — merkt eine Antwort im Clone (`.git/ouroboros.json`).
-  So wird eine Frage nur einmal gestellt. Siehe `loop-doc permissions`.
-- `loop-note <PR-URL|Branch> <Stelle> <Begründung>` — eine Zuordnung, die nicht als PR-Antwort
-  stehen darf. Landet in `~/.claude/ouroboros/attributions.jsonl`, `agent-usage` zählt sie
-  wie eine PR-Antwort.
+- `loop-permission` — shows what is allowed, denied or still open in the current repo.
+- `loop-permission <kind> <yes|no>` — remembers an answer in the clone (`.git/ouroboros.json`).
+  That way a question is asked only once. See `loop-doc permissions`.
+- `loop-note <PR-URL|branch> <place> <reason>` — an attribution that must not stand as a PR
+  reply. Lands in `~/.claude/ouroboros/attributions.jsonl`; `agent-usage` counts it like a PR
+  reply. The German place names are accepted as well.
 """
 
 import json
@@ -15,48 +15,47 @@ from datetime import datetime, timezone
 
 import loopcfg
 
-PLACES = ("niemand", "developer", "reviewer", "regel fehlt", "spec", "schnitt", "lücke")
-
 
 def permission(args):
     root = loopcfg.project_root()
     if not args:
         decided = loopcfg.permissions(root)
-        for answer, label in (("yes", "erlaubt"), ("no", "verboten"), (None, "offen, fragen")):
+        for answer, label in (("yes", "allowed"), ("no", "denied"), (None, "open, ask")):
             kinds = [kind for kind, value in decided.items() if value == answer]
             if kinds:
                 print(f"{label}: {', '.join(kinds)}")
         return 0
     if len(args) != 2 or args[0] not in loopcfg.KINDS or args[1] not in loopcfg.ANSWERS:
-        print("loop-permission [<art> <yes|no>], art: " + ", ".join(loopcfg.KINDS))
+        print("loop-permission [<kind> <yes|no>], kind: " + ", ".join(loopcfg.KINDS))
         return 2
     kind, value = args
     current = loopcfg.permissions(root)[kind]
     if current == value:
-        print(f"{kind}: {value} gilt schon.")
+        print(f"{kind}: {value} already holds.")
         return 0
     repo = loopcfg.config(root, "permissions")
     if repo.get(kind, repo.get("*")) in loopcfg.ANSWERS:
-        print(f"{kind} legt das Repo selbst fest ({loopcfg.repo_config_path(root)}): {current}. "
-              f"Eine gemerkte Antwort käme dagegen nicht an.")
+        print(f"{kind} is set by the repo itself ({loopcfg.repo_config_path(root)}): {current}. "
+              f"A remembered answer would not override it.")
         return 1
     print(f"{kind}: {value} → {loopcfg.set_permission(root, kind, value)}")
     return 0
 
 
 def note(args):
-    if len(args) != 3 or args[1].lower() not in PLACES:
-        print("loop-note <PR-URL|Branch> <Stelle> <Begründung>, Stelle: " + ", ".join(PLACES))
+    place = loopcfg.place_of(args[1]) if len(args) == 3 else None
+    if place is None:
+        print("loop-note <PR-URL|branch> <place> <reason>, place: " + ", ".join(loopcfg.PLACES))
         return 2
     root = loopcfg.project_root()
-    ref, place, text = args
+    ref, _, text = args
     entry = {"at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
-             "repo": loopcfg.repo_id(root), "ref": ref, "place": place.lower(),
-             "text": f"Zuordnung: {place} — {text}"}
+             "repo": loopcfg.repo_id(root), "ref": ref, "place": place,
+             "text": f"Attribution: {place} — {text}"}
     loopcfg.HOME.mkdir(parents=True, exist_ok=True)
     with loopcfg.NOTES.open("a", encoding="utf-8") as stream:
         stream.write(json.dumps(entry, ensure_ascii=False) + "\n")
-    print(f"Zuordnung notiert: {loopcfg.NOTES}")
+    print(f"Attribution noted: {loopcfg.NOTES}")
     return 0
 
 

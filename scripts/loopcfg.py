@@ -1,21 +1,21 @@
-"""Was alle Prüfungen des Plugins gemeinsam brauchen: die Projektwurzel, die Einstellungen eines
-Repos, die gemerkten Erlaubnisse, das Register der Repos, die den Loop fahren, und die Quelle des
-Plugins.
+"""What all of the plugin's checks share: the project root, a repo's settings, the remembered
+permissions, the registry of repos that run the loop, the attribution places, and the plugin's
+source.
 
-Ein Repo kennt zwei Orte für den Loop, beide optional:
+A repo knows two places for the loop, both optional:
 
-- `.claude/ouroboros.json` im Repo — für ein Repo, das den Loop selbst trägt: Erlaubnisse für
-  alle, Schwellen der Prüfungen. Nur dann laufen Roadmap- und Hausstil-Prüfung.
-- `.git/ouroboros.json` im Clone — die Antworten, die der Stakeholder einmal gegeben hat
-  (`loop-doc permissions`). Was unter `.git` liegt, versioniert Git nicht: ein fremdes Repo
-  bleibt unberührt, und alle Worktrees des Clones sehen dieselben Antworten.
+- `.claude/ouroboros.json` in the repo — for a repo that carries the loop itself: permissions for
+  everyone, thresholds for the checks. Only then do the roadmap and house-style checks run.
+- `.git/ouroboros.json` in the clone — the answers the stakeholder gave once
+  (`loop-doc permissions`). Git does not version what lives under `.git`: a foreign repo stays
+  untouched, and all worktrees of the clone see the same answers.
 
-Was ein Projekt sonst über sich weiß — Testbefehl, Sprache, Fallen — steht in seiner eigenen
-CLAUDE.md und Doku, nicht hier.
+Whatever else a project knows about itself — test command, language, pitfalls — lives in its own
+CLAUDE.md and docs, not here.
 
-Das Plugin läuft als Kopie im Cache von Claude Code. Die Rollen ändern sich aber in seinem
-Quell-Repo, und nur dort hat Git ihre Geschichte. Darum unterscheidet dieses Modul zwischen der
-Wurzel der Kopie (`PLUGIN_ROOT`) und der Quelle (`plugin_source()`).
+The plugin runs as a copy in Claude Code's cache. The roles change in its source repo, though,
+and only there does Git have their history. That is why this module tells the root of the copy
+(`PLUGIN_ROOT`) apart from the source (`plugin_source()`).
 """
 
 import json
@@ -35,6 +35,20 @@ KINDS = ("push", "pr", "issues", "labels", "pr-comments", "adr", "context", "roa
          "principles")
 ANSWERS = ("yes", "no")
 
+# The places an attribution can name (`Attribution: <place> — …`). The German forms were the
+# original ones; PR replies and notes written with them still count, as the same place.
+PLACES = ("nobody", "developer", "reviewer", "rule missing", "spec", "cut", "gap")
+PLACE_ALIASES = {"niemand": "nobody", "regel fehlt": "rule missing", "schnitt": "cut",
+                 "lücke": "gap"}
+ATTRIBUTION_PREFIXES = ("Attribution", "Zuordnung")
+
+
+def place_of(text):
+    """The canonical place for a place as written, in either language; None if it is none."""
+    place = " ".join((text or "").split()).lower()
+    place = PLACE_ALIASES.get(place, place)
+    return place if place in PLACES else None
+
 
 def git(args, cwd, timeout=5):
     try:
@@ -46,15 +60,15 @@ def git(args, cwd, timeout=5):
 
 
 def project_root(start=None):
-    """Die Wurzel des Checkouts, in dem die Session läuft. In einem Worktree ist das der
-    Worktree, nicht der Haupt-Checkout."""
+    """The root of the checkout the session runs in. In a worktree that is the worktree, not the
+    main checkout."""
     start = start or os.environ.get("CLAUDE_PROJECT_DIR") or os.getcwd()
     top = git(["rev-parse", "--show-toplevel"], cwd=start)
     return Path(top) if top else Path(start)
 
 
 def main_checkout(root):
-    """Aus einem Worktree heraus der Haupt-Checkout — dort liegen Register und Transkripte."""
+    """From inside a worktree, the main checkout — that is where registry and transcripts live."""
     common = git(["rev-parse", "--path-format=absolute", "--git-common-dir"], cwd=root)
     return Path(common).parent if common else Path(root)
 
@@ -63,8 +77,8 @@ REMOTE = re.compile(r"[:/]([^/:]+)/([^/]+?)(?:\.git)?/?$")
 
 
 def repo_id(root):
-    """`owner__repo` aus der `origin`-Remote, sonst der Name des Haupt-Checkouts. Gleich auf
-    jedem Gerät — der Schlüssel, unter dem `loop-note` eine Zuordnung einem Repo zuschreibt."""
+    """`owner__repo` from the `origin` remote, else the name of the main checkout. The same on
+    every device — the key under which `loop-note` assigns an attribution to a repo."""
     url = git(["remote", "get-url", "origin"], cwd=root)
     match = REMOTE.search(url) if url else None
     if match:
@@ -73,7 +87,7 @@ def repo_id(root):
 
 
 def git_dir(root):
-    """Das gemeinsame `.git` des Clones — aus einem Worktree heraus das des Haupt-Checkouts."""
+    """The clone's shared `.git` — from inside a worktree, the main checkout's."""
     common = git(["rev-parse", "--path-format=absolute", "--git-common-dir"], cwd=root)
     return Path(common) if common else Path(root) / ".git"
 
@@ -94,7 +108,7 @@ def repo_config_path(root):
 
 
 def carries_loop(root):
-    """Trägt das Repo den Loop selbst? Dann hat es `.claude/ouroboros.json`."""
+    """Does the repo carry the loop itself? Then it has `.claude/ouroboros.json`."""
     return repo_config_path(root) is not None
 
 
@@ -103,21 +117,21 @@ def local_path(root):
 
 
 def is_active(root):
-    """Läuft der Loop in diesem Repo? Ja, wenn es ihn trägt oder hier schon einmal eine Antwort
-    gemerkt wurde."""
+    """Does the loop run in this repo? Yes if the repo carries it or an answer was already
+    remembered here."""
     return carries_loop(root) or local_path(root).is_file()
 
 
 def config(root, section):
-    """Ein Abschnitt aus `.claude/ouroboros.json` des Repos."""
+    """One section of the repo's `.claude/ouroboros.json`."""
     path = repo_config_path(root)
     value = (_read_json(path) or {}).get(section) if path else None
     return value if isinstance(value, dict) else {}
 
 
 def permissions(root):
-    """{Art: yes|no|None}. Was das Repo für alle festlegt, gilt; sonst die gemerkte Antwort;
-    sonst None — offen, also fragen."""
+    """{kind: yes|no|None}. What the repo sets for everyone holds; else the remembered answer;
+    else None — open, so ask."""
     decided = {kind: None for kind in KINDS}
     local = (_read_json(local_path(root)) or {}).get("permissions") or {}
     repo = config(root, "permissions")
@@ -131,7 +145,7 @@ def permissions(root):
 
 
 def set_permission(root, kind, value):
-    """Merkt eine Antwort im Clone und gibt den Pfad zurück."""
+    """Remembers an answer in the clone and returns the path."""
     path = local_path(root)
     data = _read_json(path) or {}
     data.setdefault("repo", repo_id(root))
@@ -141,7 +155,7 @@ def set_permission(root, kind, value):
 
 
 def notes():
-    """[{at, repo, ref, place, text}] — Zuordnungen, die nicht als PR-Antwort stehen dürfen."""
+    """[{at, repo, ref, place, text}] — attributions that must not stand as a PR reply."""
     try:
         lines = NOTES.read_text(encoding="utf-8").splitlines()
     except OSError:
@@ -167,7 +181,7 @@ def _norm(path):
 
 
 def registered():
-    """Die Haupt-Checkouts, in denen der Loop schon einmal lief und die es noch gibt."""
+    """The main checkouts the loop has run in before and that still exist."""
     try:
         paths = json.loads(REGISTRY.read_text(encoding="utf-8"))
     except (OSError, ValueError):
@@ -176,8 +190,8 @@ def registered():
 
 
 def register(root):
-    """Merkt sich den Haupt-Checkout. Jeder SessionStart in einem Repo mit Loop ruft das,
-    damit `agent-usage` weiß, welche Repos es über alle Rollen hinweg lesen muss."""
+    """Remembers the main checkout. Every SessionStart in a repo with the loop calls this, so
+    `agent-usage` knows which repos it has to read across all roles."""
     checkout = main_checkout(root)
     try:
         paths = json.loads(REGISTRY.read_text(encoding="utf-8"))
@@ -194,8 +208,8 @@ def register(root):
 
 
 def _is_source(path):
-    """Ein Clone des Plugins mit voller Geschichte. Ein flacher Clone kennt nur seinen letzten
-    Commit, jede Datei sähe darin frisch geändert aus."""
+    """A clone of the plugin with full history. A shallow clone knows only its last commit;
+    every file in it would look freshly changed."""
     manifest = Path(path) / ".claude-plugin" / "plugin.json"
     try:
         named = json.loads(manifest.read_text(encoding="utf-8")).get("name") == PLUGIN_NAME
@@ -206,7 +220,7 @@ def _is_source(path):
 
 
 def plugin_repository():
-    """`owner/repo` des Plugins auf GitHub, aus dem Manifest."""
+    """The plugin's `owner/repo` on GitHub, from the manifest."""
     try:
         manifest = json.loads((PLUGIN_ROOT / ".claude-plugin" / "plugin.json").read_text(
             encoding="utf-8"))
@@ -217,11 +231,11 @@ def plugin_repository():
 
 
 def plugin_source():
-    """Ein Clone des Plugins mit voller Geschichte: `OUROBOROS_SOURCE`, sonst das Repo, in dem
-    die Session läuft — die Session des Agent-Designers —, sonst der Marktplatz, aus dem es
-    installiert ist, sonst die Kopie selbst (`--plugin-dir`). Aus GitHub installiert ist der
-    Marktplatz ein flacher Clone und zählt nicht; dann gibt es keine Quelle, und die
-    Änderungszeitpunkte kommen über die GitHub-API."""
+    """A clone of the plugin with full history: `OUROBOROS_SOURCE`, else the repo the session
+    runs in — the Agent-Designer's session —, else the marketplace it was installed from, else
+    the copy itself (`--plugin-dir`). Installed from GitHub, the marketplace is a shallow clone
+    and does not count; then there is no source, and the change times come from the GitHub
+    API."""
     candidates = []
     if os.environ.get("OUROBOROS_SOURCE"):
         candidates.append(Path(os.environ["OUROBOROS_SOURCE"]))
@@ -244,10 +258,10 @@ def plugin_source():
 
 
 def definitions_root():
-    """Wo die Rollen gelesen werden: die Quelle, wenn es sie gibt, sonst die installierte Kopie."""
+    """Where the roles are read: the source if there is one, else the installed copy."""
     return plugin_source() or PLUGIN_ROOT
 
 
 def project_slug(path):
-    """Der Verzeichnisname, unter dem Claude Code die Transkripte eines Pfads ablegt."""
+    """The directory name under which Claude Code stores a path's transcripts."""
     return re.sub(r"[^A-Za-z0-9]", "-", str(path))
