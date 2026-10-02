@@ -217,11 +217,15 @@ def plugin_repository():
 
 
 def plugin_source():
-    """Das Quell-Repo des Plugins: `OUROBOROS_SOURCE`, sonst der Marktplatz, aus dem es
-    installiert ist, sonst die Kopie selbst, wenn sie ein Git-Repo ist (`--plugin-dir`)."""
+    """Ein Clone des Plugins mit voller Geschichte: `OUROBOROS_SOURCE`, sonst das Repo, in dem
+    die Session läuft — die Session des Agent-Designers —, sonst der Marktplatz, aus dem es
+    installiert ist, sonst die Kopie selbst (`--plugin-dir`). Aus GitHub installiert ist der
+    Marktplatz ein flacher Clone und zählt nicht; dann gibt es keine Quelle, und die
+    Änderungszeitpunkte kommen über die GitHub-API."""
     candidates = []
     if os.environ.get("OUROBOROS_SOURCE"):
         candidates.append(Path(os.environ["OUROBOROS_SOURCE"]))
+    candidates.append(main_checkout(project_root()))
     known = Path.home() / ".claude" / "plugins" / "known_marketplaces.json"
     try:
         for entry in json.loads(known.read_text(encoding="utf-8")).values():
