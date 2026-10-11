@@ -6,7 +6,7 @@
 # The floor is the oldest Python still supported upstream; raise it when that one reaches its end
 # of life (3.10: October 2026).
 name=$1
-script="${0%/*}/$name"
+script="${0%[/\\]*}/$name"  # cut at `/` or, on Windows, `\`
 shift
 for python in python3 python py; do
     if "$python" -c 'import sys; sys.exit(sys.version_info < (3, 10))' >/dev/null 2>&1; then

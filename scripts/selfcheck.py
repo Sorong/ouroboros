@@ -131,7 +131,8 @@ def check_hook():
 
 
 def check_commands():
-    launch = re.compile(r'^exec sh "\$\{0%/\*\}/\.\./scripts/python\.sh" (\w+\.py)\b', re.MULTILINE)
+    launch = re.compile(r'^exec sh "\$\{0%\[/\\\\\]\*\}/\.\./scripts/python\.sh" (\w+\.py)\b',
+                        re.MULTILINE)
     for path in sorted(ROOT.glob("bin/*")):
         match = launch.search(path.read_text(encoding="utf-8"))
         if not match or not (ROOT / "scripts" / match.group(1)).is_file():
