@@ -56,6 +56,8 @@ def permission_summary(root):
 
 
 def main():
+    # A skipped check names its error on stderr; under a Windows code page that must not raise.
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
     root = loopcfg.project_root()
     active = loopcfg.is_active(root)
     source = loopcfg.plugin_source()

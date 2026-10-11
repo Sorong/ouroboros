@@ -5,7 +5,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/scripts/session_start.py\"",
+            "command": "sh \"${CLAUDE_PLUGIN_ROOT}/scripts/python.sh\" session_start.py",
             "timeout": 20,
             "statusMessage": "Ouroboros: checking roadmap, house style, agent cut"
           }

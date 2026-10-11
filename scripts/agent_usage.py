@@ -81,7 +81,7 @@ CANDIDATE_RUNS = 3        # Three times the same shape is a role, twice is chanc
 ORIENTATION_SHARE = 0.5   # A document that half of all runs read in full.
 WINDOW_DAYS = 90          # Older runs are history, not a finding.
 HOOK_BUDGET_SECONDS = 5   # What one run does not read in, the next one catches up on.
-CACHE_VERSION = 7         # Discard on new fields or labels instead of mixing halves.
+CACHE_VERSION = 8         # Discard on new fields or labels instead of mixing halves.
 SHOWN_PER_FINDING = 3     # Outliers are sorted; the heaviest are enough.
 LOCK_RUNS = 5             # This many runs a changed definition needs before it can be a finding.
 PATTERN_PRS = 3           # The same attribution in this many PRs is a pattern, fewer is a one-off.
@@ -190,12 +190,18 @@ def scan(path, meta, known_docs):
                     record["spawned"].append(plain(arguments.get("subagent_type", "?")))
                 if block.get("name") == "Skill" and arguments.get("skill"):
                     skills.add(plain(arguments["skill"]))
-                docs.update(filter(None, (repo_doc(match, known_docs)
-                                          for match in DOC_PATH.findall(json.dumps(arguments)))))
+                docs.update(docs_in(arguments, known_docs))
     close_block(streak, prompt)
     record["docs"] = sorted(docs)
     record["skills"] = sorted(skills)
     return record
+
+
+def docs_in(arguments, known_docs):
+    """The repo's documents a tool call names. A Windows path arrives with `\\`, escaped once more
+    by JSON."""
+    text = json.dumps(arguments).replace("\\\\", "/")
+    return set(filter(None, (repo_doc(match, known_docs) for match in DOC_PATH.findall(text))))
 
 
 def repo_doc(match, known_docs):

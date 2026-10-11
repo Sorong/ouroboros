@@ -1,3 +1,3 @@
 #!/usr/bin/env sh
 # roadmap-status — a check of the ouroboros plugin for the repo in the current directory.
-exec python3 "$(dirname "$0")/../scripts/roadmap_status.py" "$@"
+exec sh "${0%[/\\]*}/../scripts/python.sh" roadmap_status.py "$@"

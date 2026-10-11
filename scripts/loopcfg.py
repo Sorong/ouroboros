@@ -177,6 +177,9 @@ def same_path(a, b):
 
 
 def _norm(path):
+    # Case-blind: Windows and macOS hand out the same checkout in more than one spelling, and a
+    # repo registered twice would be counted twice. Two Linux repos differing only in case would
+    # share one entry; that is the cheaper error.
     return str(Path(path)).replace("\\", "/").rstrip("/").lower()
 
 
