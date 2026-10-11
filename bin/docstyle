@@ -1,3 +1,3 @@
 #!/usr/bin/env sh
 # docstyle — a check of the ouroboros plugin for the repo in the current directory.
-exec python3 "$(dirname "$0")/../scripts/docstyle.py" "$@"
+exec sh "${0%/*}/../scripts/python.sh" docstyle.py "$@"

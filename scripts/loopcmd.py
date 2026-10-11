@@ -7,6 +7,7 @@
 - `loop-note <PR-URL|branch> <place> <reason>` — an attribution that must not stand as a PR
   reply. Lands in `~/.claude/ouroboros/attributions.jsonl`; `agent-usage` counts it like a PR
   reply. The German place names are accepted as well.
+- `loop-doc <name>` — prints a convention or the contract of the plugin. Without a name: the list.
 """
 
 import json
@@ -59,7 +60,17 @@ def note(args):
     return 0
 
 
-COMMANDS = {"permission": permission, "note": note}
+def doc(args):
+    docs = loopcfg.PLUGIN_ROOT / "docs"
+    names = sorted(path.stem for path in docs.glob("*.md"))
+    if len(args) != 1 or args[0] not in names:
+        print("loop-doc <name>, name: " + ", ".join(names))
+        return 0 if not args else 2
+    print((docs / f"{args[0]}.md").read_text(encoding="utf-8"))
+    return 0
+
+
+COMMANDS = {"permission": permission, "note": note, "doc": doc}
 
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")

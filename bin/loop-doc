@@ -1,13 +1,3 @@
-#!/usr/bin/env python3
-"""loop-doc <name> — prints a convention or the contract of the ouroboros plugin.
-Without a name: the list."""
-import sys
-from pathlib import Path
-
-docs = Path(__file__).resolve().parent.parent / "docs"
-names = sorted(p.stem for p in docs.glob("*.md"))
-if len(sys.argv) != 2 or sys.argv[1] not in names:
-    print("loop-doc <name>, name: " + ", ".join(names))
-    sys.exit(0 if len(sys.argv) == 1 else 2)
-sys.stdout.reconfigure(encoding="utf-8")
-print((docs / f"{sys.argv[1]}.md").read_text(encoding="utf-8"))
+#!/usr/bin/env sh
+# loop-doc — prints a convention or the contract of the ouroboros plugin.
+exec sh "${0%/*}/../scripts/python.sh" loopcmd.py doc "$@"

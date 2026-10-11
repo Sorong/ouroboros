@@ -33,6 +33,10 @@ claude plugin marketplace add Sorong/ouroboros
 claude plugin install ouroboros@ouroboros
 ```
 
+It needs Git and Python 3 — the oldest version still supported upstream or newer, as
+`python3`, `python` or `py`. The hook and the commands run in `sh`; on Windows that is the Git
+Bash of Git for Windows, without which the plugin stays silent.
+
 Then set `"autoUpdate": true` for the marketplace in `~/.claude/settings.json`. From then on
 every commit on `main` reaches the machine at the next session start (`/reload-plugins` picks it
 up immediately). A repo that enables the plugin in its `.claude/settings.json` offers it for
